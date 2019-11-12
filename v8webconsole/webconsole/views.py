@@ -1,24 +1,28 @@
 from django.views.generic import ListView
 from v8webconsole.clusterconfig.models import Host, Cluster, ClusterCredentials
 from django.db import models
-from django.db.models.fields import reverse_related
+from django.db.models.fields import reverse_related, related
+from django.contrib.auth.mixins import LoginRequiredMixin
 from v8webconsole.core import cluster as core_cluster
 
 
-class HostListView(ListView):
+def get_field_names(model_class):
+    return [field.name for field in model_class._meta.get_fields()
+            if not isinstance(field, (models.AutoField, reverse_related.ForeignObjectRel, related.RelatedField))
+            ]
+
+
+class HostListView(LoginRequiredMixin, ListView):
     model = Host
     template_name = 'host_list.html'
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        f = self.model._meta.get_fields()
-        ctx['field_names'] = [field.name for field in self.model._meta.get_fields()
-                              if not isinstance(field, (models.AutoField, reverse_related.ForeignObjectRel))
-                              ]
+        ctx['field_names'] = get_field_names(self.model)
         return ctx
 
 
-class ClusterListView(ListView):
+class ClusterListView(LoginRequiredMixin, ListView):
     model = Cluster
     template_name = 'cluster_list.html'
 
@@ -27,13 +31,12 @@ class ClusterListView(ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['field_names'] = [field.name for field in self.model._meta.get_fields()
-                              if not isinstance(field, (models.AutoField, reverse_related.ForeignObjectRel))
-                              ]
+        ctx['field_names'] = get_field_names(self.model)
         return ctx
 
 
-class InfobaseListView(ListView):
+class InfobaseListView(LoginRequiredMixin, ListView):
+    template_name = 'infobase_list.html'
 
     def get_queryset(self):
         cluster = Cluster.objects.get(host__id=self.kwargs['cluster_id'])
@@ -47,5 +50,3 @@ class InfobaseListView(ListView):
         agent_connection = cci.get_agent_connection()
         info_bases_short = cci.get_info_bases_short(agent_connection)
         return [ib.Name for ib in info_bases_short]
-
-    template_name = 'infobase_list.html'

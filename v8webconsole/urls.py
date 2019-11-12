@@ -24,7 +24,8 @@ from .webconsole.urls import urlpatterns as webconsole_urls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    url(r'^webconsole/', include((webconsole_urls, "webconsole"), namespace="webconsole")),
+    path('account/', include('django.contrib.auth.urls')),
+    url(r'^webconsole/', include((webconsole_urls, 'webconsole'), namespace='webconsole')),
 ]
 
 if settings.DEBUG:
