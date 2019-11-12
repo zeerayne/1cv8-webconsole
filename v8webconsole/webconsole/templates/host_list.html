@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<table>
+    <thead>
+        <tr>
+            {% for field in field_names %}
+                <th>{{ field }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+{% for host in object_list %}
+    <tr>
+        <td><a href="{% url 'webconsole:cluster_list' host.id %}">{{ host.address }}</a></td>
+        <td>{{ host.port }}</td>
+    </tr>
+{% empty %}
+    <td>No data</td>
+{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

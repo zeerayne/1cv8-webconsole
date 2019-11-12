@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<table>
+    <thead>
+        <tr>
+            {% for field in field_names %}
+                <th>{{ field }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+{% for cluster in object_list %}
+    <tr>
+        <td><a href="{% url 'webconsole:infobase_list' cluster.id %}">{{ cluster.name }}</a></td>
+        <td>{{ cluster.host }}</td>
+    </tr>
+{% empty %}
+    <td>No data</td>
+{% endfor %}
+  </tbody>
+</table>
+{% endblock %}
