@@ -1,18 +1,90 @@
 import pythoncom
 import win32com.client
 
-from typing import List
+from typing import List, Optional
 
-class COMConnector:
+
+class COMObjectWrapper:
+
+    def __init__(self, iv8obj):
+        self._iv8obj = iv8obj
+
+    def get_underlying_com_object(self):
+        return self._iv8obj
+
+
+class COMConnector(COMObjectWrapper):
 
     def __init__(self):
         pythoncom.CoInitialize()
         # В зависимости от версии платформы используется V82.COMConnector или V83.COMConnector
-        self.V8_COM_CONNECTOR = None
         try:
-            self.V8_COM_CONNECTOR = win32com.client.Dispatch("V83.COMConnector")
+            v8_com_connector = win32com.client.Dispatch("V83.COMConnector")
         except pythoncom.com_error:
-            self.V8_COM_CONNECTOR = win32com.client.Dispatch("V82.COMConnector")
+            v8_com_connector = win32com.client.Dispatch("V82.COMConnector")
+        super().__init__(v8_com_connector)
+
+    @property
+    def high_bound_default(self) -> int:
+        """
+        Содержит верхнюю границу диапазона IP-портов сервера кластера по умолчанию.
+        """
+        return self._iv8obj.HighBoundDefault
+
+    @property
+    def low_bound_default(self) -> int:
+        """
+        Содержит нижнюю границу диапазона IP-портов сервера кластера по умолчанию.
+        """
+        return self._iv8obj.LowBoundDefault
+
+    @property
+    def max_connections(self) -> int:
+        """
+        Определяет максимальное число одновременно существующих объектов Внешнее соединение,
+        созданных через данный менеджер COM-соединений. Число одновременно существующих соединений включает также
+        число соединений, находящихся в пуле внешних соединений.
+        Значением по умолчанию 0 (число одновременно существующих объектов Внешнее соединение не ограничено).
+        Устанавливать свойству не нулевое значение можно только в том случае, если сам объект был создан в
+        Multithreaded Apartment (MTA), что обеспечивает реальное функционирование самого менеджера
+        и созданных им объектов Внешнее соединение в многопотоковой (multithreaded) среде.
+        Если же объект был создан в Singlethreaded Apartment (STA), то реально все действия с ним и созданными им
+        объектами Внешнее соединение будут выполняться в одном потоке. В этом случае, если метод Connect не сможет
+        на первом проходе найти подходящее или создать новое Внешнее соединение, то выполнение этого метода зациклится,
+        так как освободить уже, возможно, ненужное другое Внешнее соединение будет нельзя по той причине, что операция
+        освобождения объекта Внешнее соединение должна быть выполнена в том же потоке,
+        в котором уже выполняется метод Connect.
+        """
+        return self._iv8obj.MaxConnections
+
+    @property
+    def pool_capacity(self) -> int:
+        """
+        Максимальное количество соединений с информационной базой, которые могут одновременно находиться в пуле.
+        """
+        return self._iv8obj.PoolCapacity
+
+    @property
+    def pool_timeout(self) -> int:
+        """
+        Максимальное время нахождения в пуле неиспользуемого соединения с информационной базой.
+        После истечения этого времени неиспользуемое соединение освобождается.
+        """
+        return self._iv8obj.PoolTimeout
+
+    @property
+    def ragent_port_default(self) -> int:
+        """
+        Содержит номер IP-порта агента сервера по умолчанию.
+        """
+        return self._iv8obj.RAgentPortDefault
+
+    @property
+    def rmngr_port_default(self) -> int:
+        """
+        Содержит номер IP-порта менеджера кластера по умолчанию.
+        """
+        return self._iv8obj.RMngrPortDefault
 
     def connect(self, connection_string: str):
         """
@@ -142,7 +214,7 @@ class COMConnector:
         :param connection_string: Строка соединения, используемая 1С:Предприятием для соединения с информационной базой.
         :return: Внешнее соединение.
         """
-        return self.V8_COM_CONNECTOR.Connect(connection_string)
+        return self._iv8obj.Connect(connection_string)
 
     def connect_agent(self, identity: str) -> 'ServerAgentConnection':
         """
@@ -154,7 +226,7 @@ class COMConnector:
         «server1», «tcp://server1», «tcp://server1:1540», «server1:1540»
         :return: Соединение с агентом сервера
         """
-        return ServerAgentConnection(self.V8_COM_CONNECTOR.ConnectAgent(identity))
+        return ServerAgentConnection(self._iv8obj.ConnectAgent(identity))
 
     def connect_working_process(self, identity: str) -> 'WorkingProcessConnection':
         """
@@ -168,16 +240,7 @@ class COMConnector:
         tcp://43.73.34.11:5342.
         :return: Соединение с рабочим процессом
         """
-        return WorkingProcessConnection(self.V8_COM_CONNECTOR.ConnectWorkingProcess(identity))
-
-
-class COMObjectWrapper:
-
-    def __init__(self, iv8obj):
-        self._iv8obj = iv8obj
-
-    def get_underlying_com_object(self):
-        return self._iv8obj
+        return WorkingProcessConnection(self._iv8obj.ConnectWorkingProcess(identity))
 
 
 class ServerAgentConnection(COMObjectWrapper):
@@ -752,11 +815,15 @@ class InfobaseShort(COMObjectWrapper):
     def __init__(self, iv8_infobase):
         super().__init__(iv8_infobase)
 
-    def get_underlying_com_object(self):
-        return self._iv8obj
-
     @property
     def descr(self) -> str:
+        """
+        Содержит описание информационной базы.
+        Служит для целей информирования пользователя о назначении данной информационной базы.
+
+        Использование:
+        Чтение и запись
+        """
         return self._iv8obj.Descr
 
     @descr.setter
@@ -765,6 +832,12 @@ class InfobaseShort(COMObjectWrapper):
 
     @property
     def name(self) -> str:
+        """
+        Имя информационной базы.
+
+        Использование:
+        Только чтение
+        """
         return self._iv8obj.Name
 
 
@@ -777,16 +850,356 @@ class Infobase(InfobaseShort):
     В последнем случае для чтения значений всех их свойств, кроме Name, необходимы административные права.
     Представляет собой объект с интерфейсом IInfoBaseInfo.
     """
+    __date_offset: Optional[int]
+    __locale: Optional[str]
+
     def __init__(self, iv8_infobase):
         super().__init__(iv8_infobase)
+        self.__date_offset = None
+        self.__locale = None
+
+    @property
+    def date_offset(self) -> int:
+        """
+        Смещение дат в информационной базе (0 или 2000).
+
+        Использование:
+        Только запись.
+        """
+        return self.__date_offset
+
+    @date_offset.setter
+    def date_offset(self, arg: int):
+        self.__date_offset = arg
+        self._iv8obj.DateOffset = arg
+
+    @property
+    def dbms(self) -> str:
+        """
+        Определяет тип СУБД, в которой размещается информационная база. Возможны следующие типы СУБД:
+        MSSQLServer - Microsoft SQL Server;
+        PostgreSQL - PostgreSQL;
+        IBMDB2 - IBM DB2;
+        OracleDatabase - Oracle Database.
+
+        Использование:
+        Чтение и запись
+        """
+        return self._iv8obj.DBMS
+
+    @dbms.setter
+    def dbms(self, arg: str):
+        self._iv8obj.DBMS = arg
+
+    @property
+    def db_name(self) -> str:
+        """
+        Имя базы данных сервера баз данных, в которой размещается информационная база.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.dbName
+
+    @db_name.setter
+    def db_name(self, arg: str):
+        self._iv8obj.dbName = arg
+
+    @property
+    def db_password(self) -> str:
+        """
+        Пароль пользователя сервера баз данных.
+        Если объект получен методом GetInfoBases, то результат чтения отличается от настоящего пароля пользователя.
+        Пароль пользователя базы данных для зарегистрированной информационной базы прочитать нельзя.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.dbPassword
+
+    @db_password.setter
+    def db_password(self, arg: str):
+        self._iv8obj.dbPassword = arg
+
+    @property
+    def db_server_name(self) -> str:
+        """
+        Имя сервера баз данных, в котором расположена информационная база.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.dbServerName
+
+    @db_server_name.setter
+    def db_server_name(self, arg: str):
+        self._iv8obj.dbServerName = arg
+
+    @property
+    def db_user(self) -> str:
+        """
+        Имя пользователя сервера базы данных, от которого сервер 1С:Предприятия обращается к серверу базы данных.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.dbUser
+
+    @db_user.setter
+    def db_user(self, arg: str):
+        self._iv8obj.dbUser = arg
+
+    @property
+    def denied_from(self):
+        """
+        Начало интервала времени, в течение которого действует режим блокировки сеансов.
+        Если указана пустая дата ('00010101'), то без ограничения.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.DeniedFrom
+
+    @denied_from.setter
+    def denied_from(self, arg):
+        self._iv8obj.DeniedFrom = arg
+
+    @property
+    def denied_message(self) -> str:
+        """
+        Сообщение, выдаваемое при попытке нарушения блокировки сеансов.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.DeniedMessage
+
+    @denied_message.setter
+    def denied_message(self, arg: str):
+        self._iv8obj.DeniedMessage = arg
+
+    @property
+    def denied_parameter(self) -> str:
+        """
+        Параметр блокировки сеансов. Может содержать произвольную строку.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.DeniedParameter
+
+    @denied_parameter.setter
+    def denied_parameter(self, arg: str):
+        self._iv8obj.DeniedParameter = arg
+
+    @property
+    def denied_to(self):
+        """
+        Конец интервала времени, в течение которого действует режим блокировки сеансов.
+        Если указана пустая дата ('00010101'), то без ограничения.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.DeniedTo
+
+    @denied_to.setter
+    def denied_to(self, arg):
+        self._iv8obj.DeniedTo = arg
+
+    @property
+    def external_session_manager_connection_string(self) -> str:
+        """
+        Внешнее управление сеансами.
+        Значение: строка параметров веб сервиса внешнего управления сеансами в формате <имя параметра>=<значение>
+        через символ ';' (точка с запятой).
+        Если <значение> содержит пробелы или символы ';', то строку значения параметра следует заключать в кавычки (").
+        При этом, каждый из символов кавычки ("), присутсивующий в строке <значение>,
+        должен быть представлен двумя кавычками ("").
+        Параметры:
+        - wsdl – URL для получения wsdl веб сервиса;
+        - ns – пространство имен веб сервиса;
+        - srvc – имя веб сервиса;
+        - port – имя порта веб сервиса.
+        Например:
+        wsdl=http://srvr/034983/ws/esc.1cws?wsdl;ns=http://www.sessioncontrol.org;srvc=ExtSessCont;port=ExtSessContSoap
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.ExternalSessionManagerConnectionString
+
+    @external_session_manager_connection_string.setter
+    def external_session_manager_connection_string(self, arg: str):
+        self._iv8obj.ExternalSessionManagerConnectionString = arg
+
+    @property
+    def external_session_manager_required(self) -> bool:
+        """
+        Определяет обязательность использования внешнего управления сеансами.
+        Истина - при недоступности сервиса внешнего управления сеансами пользователю, начинающему сеанс,
+        выдается сообщение об ошибке и начало сеанса с информационной базой не выполняется.
+        Иначе при недоступности сервиса внешнего управления сеансами платформа не препятствует началу сеанса.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.ExternalSessionManagerRequired
+
+    @external_session_manager_required.setter
+    def external_session_manager_required(self, arg: bool):
+        self._iv8obj.ExternalSessionManagerRequired = arg
+
+    @property
+    def license_distribution_allowed(self) -> int:
+        """
+        Разрешить выдачу лицензий сервером 1С:Предприятия.
+        0 - не разрешать,
+        1 - разрешить.
+        Если при запуске клиентского приложения с клиент-серверной информационной базой клиентское приложение
+        не получило аппаратную лицензию (от локального HASP или сетевого HASP) или программную лицензию
+        (платформы или базовой конфигурации), то оно предпринимает попытку получить лицензию с сервера 1С:Предприятия.
+        Сервер 1С:Предприятия может выдать лицензию только, если разрешена выдача лицензий сервером 1С:Предприятия.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.LicenseDistributionAllowed
+
+    @license_distribution_allowed.setter
+    def license_distribution_allowed(self, arg: int):
+        self._iv8obj.LicenseDistributionAllowed = arg
+
+    @property
+    def locale(self) -> str:
+        """
+        Идентификатор национальных настроек информационной базы, например, ru_RU для России.
+
+        Использование:
+        Только запись.
+        """
+        return self.__locale
+
+    @locale.setter
+    def locale(self, arg: str):
+        self.__locale = arg
+        self._iv8obj.Locale = arg
 
     @property
     def name(self) -> str:
+        """
+        Имя информационной базы
+
+        Использование:
+        Чтение и запись.
+        """
         return self._iv8obj.Name
 
     @name.setter
     def name(self, arg: str):
-        self._iv8obj.name = arg
+        self._iv8obj.Name = arg
+
+    @property
+    def permission_code(self) -> str:
+        """
+        Код разрешения, разрешающий начало сеанса вопреки блокировке сеансов. Этот код должен быть задан в параметре
+        /UC командной строки запуска клиентского приложения или в параметре UC строки соединения объектов
+        V83.COMConnector или V83.Application,
+        чтобы начать сеанс с информационной базой во время действия блокировки сеансов.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.PermissionCode
+
+    @permission_code.setter
+    def permission_code(self, arg: str):
+        self._iv8obj.PermissionCode = arg
+
+    @property
+    def safe_mode_security_profile_name(self) -> str:
+        """
+        Содержит профиль безопасности исполнения кода, внешнего по отношению к конфигурации.
+        Если ссылка не указана, то в безопасном режиме исполнения кода информационная база работает с полным запретом
+        на внешнюю активность. Если указано имя профиля безопасности, то поведение информационной базы
+        в безопасном режиме исполнения кода регламентируется этим профилем.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.SafeModeSecurityProfileName
+
+    @safe_mode_security_profile_name.setter
+    def safe_mode_security_profile_name(self, arg: str):
+        self._iv8obj.SafeModeSecurityProfileName = arg
+
+    @property
+    def scheduled_jobs_denied(self) -> bool:
+        """
+        Признак блокировки выполнения регламентных заданий информационной базы.
+        Истина - выполнение регламентных заданий блокировано.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.ScheduledJobsDenied
+
+    @scheduled_jobs_denied.setter
+    def scheduled_jobs_denied(self, arg: bool):
+        self._iv8obj.ScheduledJobsDenied = arg
+
+    @property
+    def security_level(self) -> int:
+        """
+        Уровень безопасности информационной базы.
+        Определяет защищенность соединений рабочего процесса с клиентами, использующими данную информационную базу.
+        0 - незащищенное,
+        1 - защищенное только на время установки соединения и аутентификации пользователя информационной базы,
+        2 - защищенное в течение всего сеанса.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.SecurityLevel
+
+    @security_level.setter
+    def security_level(self, arg: int):
+        self._iv8obj.SecurityLevel = arg
+
+    @property
+    def security_profile_name(self) -> str:
+        """
+        Содержит имя профиля безопасности информационной базы. Если ссылка не указана, то информационная база
+        имеет полные права на внешнюю активность. Если указано имя профиля безопасности,
+        то поведение информационной базы регламентируется этим профилем.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.SecurityProfileName
+
+    @security_profile_name.setter
+    def security_profile_name(self, arg: str):
+        self._iv8obj.SecurityProfileName = arg
+
+    @property
+    def sessions_denied(self) -> bool:
+        """
+        Управляет режимом блокировки сеансов.
+        Истина и текущее время находится в диапазоне, определяемом свойствами DeniedFrom и DeniedTo,
+        то начало новых сеансов с информационной базой запрещено. Если при этом попытаться установить новый сеанс,
+        то будет выдано сообщение об ошибке, содержащее текст из значения свойства DeniedMessage.
+        Для начала сеанса вопреки блокировке сеансов необходимо указать код разрешения,
+        определяемый свойством PermissionCode.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.SessionsDenied
+
+    @sessions_denied.setter
+    def sessions_denied(self, arg: bool):
+        self._iv8obj.SessionsDenied = arg
 
 
 class InfobaseConnection(COMObjectWrapper):
