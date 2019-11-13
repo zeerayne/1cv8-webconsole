@@ -1211,8 +1211,269 @@ class InfobaseConnection(COMObjectWrapper):
     def __init__(self, iv8_infobase_connection):
         super().__init__(iv8_infobase_connection)
 
-    def get_underlying_com_object(self):
-        return self._iv8obj
+    @property
+    def app_id(self) -> str:
+        """
+        Идентификатор приложения, установившего соединение.
+        """
+        return self._iv8obj.AppID
+
+    @property
+    def blocked_by_dbms(self) -> int:
+        """
+        Идентификатор cоединения, блокирующего работу данного соединения (в СУБД).
+        """
+        return self._iv8obj.blockedByDBMS
+
+    @property
+    def bytes_all(self) -> int:
+        """
+        Объем данных, полученный и отправленный соединением.
+        """
+        return self._iv8obj.bytesAll
+
+    @property
+    def bytes_last_5min(self) -> int:
+        """
+        Объем данных, полученных и отправленных соединением за последние 5 минут.
+        """
+        return self._iv8obj.bytesLast5Min
+
+    @property
+    def calls_all(self) -> int:
+        """
+        Количество серверных вызовов соединения.
+        """
+        return self._iv8obj.callsAll
+
+    @property
+    def calls_last_5min(self) -> int:
+        """
+        Количество серверных вызовов соединения за последние 5 минут.
+        """
+        return self._iv8obj.callsLast5Min
+
+    @property
+    def connected_at(self):
+        """
+        Содержит время установки соединения.
+        """
+        return self._iv8obj.ConnectedAt
+
+    @property
+    def conn_id(self) -> int:
+        """
+        Содержит номер соединения. Имеет смысл, если с данного компьютера установлено несколько соединений.
+        """
+        return self._iv8obj.ConnID
+
+    @property
+    def current_service_name(self) -> str:
+        """
+        Идентификатор сервиса кластера, который вызывается в данный момент, или пустая строка,
+        если вызов сервиса кластера не выполняется.
+        """
+        return self._iv8obj.CurrentServiceName
+
+    @property
+    def db_conn_mode(self) -> int:
+        """
+        Режим соединения с базой данных (0 – соединения нет, 1 – разделяемое, 2 – монопольное).
+        """
+        return self._iv8obj.dbConnMode
+
+    @property
+    def dbms_bytes_all(self) -> int:
+        """
+        Объем данных, переданных между сервером 1С:Предприятия и сервером баз данных,
+        с момента установки данного соединения.
+        """
+        return self._iv8obj.dbmsBytesAll
+
+    @property
+    def dbms_bytes_last_5min(self) -> int:
+        """
+        Объем данных, переданных между сервером 1С:Предприятия и сервером баз данных, за последние 5 минут.
+        """
+        return self._iv8obj.dbmsBytesLast5Min
+
+    @property
+    def db_proc_info(self) -> str:
+        """
+        Если в момент получение списка соединений информационной базы методом GetInfoBaseConnections данное
+        соединение выполняло обращение к серверу баз данных, то свойство содержит идентификатор процесса
+        соединения с СУБД, выполняющего это обращение. Идентификатор выдается в терминах самой СУБД.
+        В противном случае – пустая строка.
+        """
+        return self._iv8obj.dbProcInfo
+
+    @property
+    def db_proc_took(self) -> int:
+        """
+        Если в момент получение списка соединений информационной базы методом GetInfoBaseConnections данное
+        соединение выполняло обращение к серверу баз данных, то свойство содержит время в секундах,
+        в течение которого выполняется данное обращение к серверу баз данных. В противном случае – 0.
+        """
+        return self._iv8obj.dbProcTook
+
+    @property
+    def db_proc_took_at(self):
+        """
+        Момент последнего захвата соединения с сервером баз данных.
+        """
+        return self._iv8obj.dbProcTookAt
+
+    @property
+    def duration_all(self) -> float:
+        """
+        Полное время серверных вызовов соединения.
+        """
+        return self._iv8obj.durationAll
+
+    @property
+    def duration_all_dbms(self) -> float:
+        """
+        Полное время серверных вызовов соединения СУБД.
+        """
+        return self._iv8obj.durationAllDBMS
+
+    @property
+    def duration_all_service(self) -> float:
+        """
+        Время в миллисекундах, которое затрачено соединением с информационной базой
+        на вызовы сервисов кластера с момента установки соединения.
+        """
+        return self._iv8obj.durationAllService
+
+    @property
+    def duration_current(self) -> float:
+        """
+        Время текущего серверного вызова.
+        """
+        return self._iv8obj.durationCurrent
+
+    @property
+    def duration_current_dbms(self) -> float:
+        """
+        Время текущего вызова СУБД.
+        """
+        return self._iv8obj.durationCurrentDBMS
+
+    @property
+    def duration_current_service(self) -> float:
+        """
+        Время в миллисекундах, в течение которого соединение с информационной базой
+        выполняет текущий вызов сервиса кластера.
+        0, если в данный момент вызов сервиса кластера не выполняется.
+        """
+        return self._iv8obj.durationCurrentService
+
+    @property
+    def duration_last_5min(self) -> float:
+        """
+        Время серверных вызовов соединения за последние 5 минут.
+        """
+        return self._iv8obj.durationLast5Min
+
+    @property
+    def duration_last_5min_dbms(self) -> float:
+        """
+        Время серверных вызовов соединения СУБД за последние 5 минут.
+        """
+        return self._iv8obj.durationLast5MinDBMS
+
+    @property
+    def duration_last_5min_service(self) -> float:
+        """
+        Время в миллисекундах, которое затрачено соединением с информационной базой
+        на вызовы сервисов кластера за последние 5 минут.
+        """
+        return self._iv8obj.durationLast5MinService
+
+    @property
+    def hostname(self) -> str:
+        """
+        Имя компьютера, с которого установлено соединение.
+        """
+        return self._iv8obj.HostName
+
+    @property
+    def ib_conn_mode(self) -> int:
+        """
+        Содержит режим соединения с информационной базой (0 – разделяемое, 1 – монопольное).
+        """
+        return self._iv8obj.IBConnMode
+
+    @property
+    def in_bytes_all(self) -> int:
+        """
+        Содержит количество данных в байтах, прочитанных с диска сеансом с момента начала сеанса.
+        """
+        return self._iv8obj.InBytesAll
+
+    @property
+    def in_bytes_current(self) -> int:
+        """
+        Содержит количество данных в байтах, прочитанных с диска с начала выполнения текущего вызова.
+        """
+        return self._iv8obj.InBytesCurrent
+
+    @property
+    def in_bytes_last_5min(self) -> int:
+        """
+        Содержит количество данных в байтах, прочитанных с диска сеансом за последние 5 минут.
+        """
+        return self._iv8obj.InBytesLast5Min
+
+    @property
+    def memory_all(self) -> int:
+        """
+        Содержит объем памяти в байтах, занятый в процессе вызовов с момента начала сеанса.
+        """
+        return self._iv8obj.MemoryAll
+
+    @property
+    def memory_current(self) -> int:
+        """
+        Содержит объем памяти в байтах, занятый с начала выполнения текущего вызова.
+        Если в данный момент вызов не выполняется, содержит 0.
+        """
+        return self._iv8obj.MemoryCurrent
+
+    @property
+    def memory_last_5min(self) -> int:
+        """
+        Содержит объем памяти в байтах, занятый в процессе вызовов за последние 5 минут.
+        """
+        return self._iv8obj.MemoryLast5Min
+
+    @property
+    def out_bytes_all(self) -> int:
+        """
+        Содержит количество данных в байтах, записанных на диск сеансом с момента начала сеанса.
+        """
+        return self._iv8obj.OutBytesAll
+
+    @property
+    def out_bytes_current(self) -> int:
+        """
+        Содержит количество данных в байтах, записанных на диск с начала выполнения текущего вызова.
+        """
+        return self._iv8obj.OutBytesCurrent
+
+    @property
+    def out_bytes_last_5min(self) -> int:
+        """
+        Содержит количество данных в байтах, записанных на диск сеансом за последние 5 минут.
+        """
+        return self._iv8obj.OutBytesLast5Min
+
+    @property
+    def username(self) -> str:
+        """
+        Содержит имя пользователя 1С:Предприятия, подсоединенного к информационной базе.
+        """
+        return self._iv8obj.UserName
 
 
 class Session(COMObjectWrapper):
