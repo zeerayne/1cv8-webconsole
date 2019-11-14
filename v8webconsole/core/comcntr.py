@@ -14,6 +14,16 @@ class COMObjectWrapper:
 
 
 class COMConnector(COMObjectWrapper):
+    """
+    Примечание: любые COM-объекты не могут быть переданы между потоками напрямую,
+    и должна использоваться маршализация
+    pythoncom.CoInitialize()
+    comobj = win32com.client.Dispatch('V83.COMConnector')
+    comobj_id = pythoncom.CoMarshalInterThreadInterfaceInStream(pythoncom.IID_IDispatch, comobj)
+    comobj = pythoncom.CoGetInterfaceAndReleaseStream(comobj_id, pythoncom.IID_IDispatch)
+
+    https://mail.python.org/pipermail/python-win32/2008-June/007788.html
+    """
 
     def __init__(self):
         pythoncom.CoInitialize()
@@ -251,7 +261,11 @@ class ServerAgentConnection(COMObjectWrapper):
     def __init__(self, iv8_agent_connection):
         super().__init__(iv8_agent_connection)
 
-    def authenticate(self, cluster, login, password):
+    @property
+    def connection_string(self) -> str:
+        return self._iv8obj.ConnectionString
+
+    def authenticate(self, cluster: 'Cluster', login: str, password: str):
         """
         Выполняет аутентификацию администратора кластера серверов.
         Все методы данного объекта, для которых необходима аутентификация администратора кластера серверов,
@@ -268,6 +282,15 @@ class ServerAgentConnection(COMObjectWrapper):
         и пользователю разрешена аутентификация паролем.
         """
         self._iv8obj.Authenticate(cluster.get_underlying_com_object(), login, password)
+
+    def authenticate_agent(self, login: str, password: str):
+        """
+        Выполняет аутентификацию администратора центрального сервера.
+        :param login: Имя администратора центрального сервера.
+        :param password: Пароль администратора центрального сервера.
+        :return:
+        """
+        self._iv8obj.AuthenticateAgent
 
     def get_clusters(self) -> List['Cluster']:
         """
@@ -1483,6 +1506,230 @@ class Session(COMObjectWrapper):
     def __init__(self, iv8_session):
         super().__init__(iv8_session)
 
+    @property
+    def app_id(self) -> str:
+        """
+        Содержит идентификатор приложения, установившего сеанс.
+        """
+        return self._iv8obj.AppID
+
+    @property
+    def blocked_by_dbms(self) -> int:
+        """
+        Содержит номер сеанса, который является причиной ожидания транзакционной блокировки, в том случае,
+        если сеанс исполняет запрос к СУБД и ожидает транзакционную блокировку, установленную другим сеансом. Иначе - 0.
+        """
+        return self._iv8obj.blockedByDBMS
+
+    @property
+    def blocked_by_ls(self) -> int:
+        """
+        Содержит номер сеанса, который является причиной ожидания управляемой транзакционной блокировки, в случае,
+        если сеанс выполняет установку управляемых транзакционных блокировок и ожидает блокировки,
+        установленные другим сеансом. Иначе - 0.
+        """
+        return self._iv8obj.blockedByLS
+
+    @property
+    def bytes_all(self) -> int:
+        """
+        Содержит объем данных, переданных между сервером 1С:Предприятия
+        и клиентским приложением данного сеанса с момента начала сеанса, в байтах.
+        """
+        return self._iv8obj.bytesAll
+
+    @property
+    def bytes_last_5min(self) -> int:
+        """
+        Содержит объем данных, переданных между сервером 1С:Предприятия
+        и клиентским приложением данного сеанса за последние 5 минут, в байтах.
+        """
+        return self._iv8obj.bytesLast5Min
+
+    @property
+    def calls_all(self) -> int:
+        """
+        Содержит количество вызовов сервера 1С:Предприятия от имени данного сеанса с момента начала сеанса.
+        """
+        return self._iv8obj.callsAll
+
+    @property
+    def calls_last_5min(self) -> int:
+        """
+        Содержит количество вызовов сервера 1С:Предприятия от имени данного сеанса за последние 5 минут.
+        """
+        return self._iv8obj.callsLast5Min
+
+    @property
+    def connection(self) -> 'ConnectionShort':
+        """
+        Содержит описание соединения, которому назначен сеанс. Иначе - Неопределено.
+        """
+        return ConnectionShort(self._iv8obj.Connection)
+
+    @property
+    def cpu_time_all(self) -> float:
+        """
+        Содержит время, которое затрачено процессором на обработку серверных вызовов с момента начала сеанса,
+        в миллисекундах.
+        """
+        return self._iv8obj.cpuTimeAll
+
+    @property
+    def cpu_time_current(self) -> float:
+        """
+        Содержит время, затраченное процессором на обработку текущего серверного вызова, в миллисекундах.
+        """
+        return self._iv8obj.cpuTimeCurrent
+
+    @property
+    def cpu_time_last_5min(self) -> float:
+        """
+        Время, которое затрачено процессором на обработку серверных вызовов сеанса за последние 5 минут,
+        в миллисекундах.
+        """
+        return self._iv8obj.cpuTimeLast5Min
+
+    @property
+    def current_service_name(self) -> str:
+        """
+        Идентификатор сервиса кластера, который вызывается в данный момент,
+        или пустая строка, если вызов сервиса кластера не выполняется.
+        """
+        return self._iv8obj.CurrentServiceName
+
+    @property
+    def dbms_bytes_all(self) -> int:
+        """
+        Содержит количество данных, переданных и полученных от СУБД от имени данного сеанса
+        с момента начала сеанса, в байтах.
+        """
+        return self._iv8obj.dbmsBytesAll
+
+    @property
+    def dbms_bytes_last_5min(self) -> int:
+        """
+        Содержит количество данных, переданных и полученных от СУБД от имени данного сеанса
+        за последние 5 минут, в байтах.
+        """
+        return self._iv8obj.dbmsBytesLast5Min
+
+    @property
+    def db_proc_info(self) -> str:
+        """
+        Содержит номер соединения с СУБД в терминах СУБД в том случае, если в момент получения списка
+        выполняется запрос к СУБД, открыта транзакция или определены временные таблицы
+        (это означает, что захвачено соединение с СУБД).
+        Пустая строка - соединение с СУБД не захвачено.
+        """
+        return self._iv8obj.dbProcInfo
+
+    @property
+    def db_proc_took(self) -> float:
+        """
+        Содержит время соединение с СУБД с момента захвата в миллисекундах.
+        0 - соединение не захвачено.
+        """
+        return self._iv8obj.dbProcTook
+
+    @property
+    def db_proc_took_at(self):
+        """
+        Содержит момент времени, когда соединение с СУБД было захвачено данным сеансом последний раз.
+        """
+        return self._iv8obj.dbProcTookAt
+
+    @property
+    def duration_all(self) -> float:
+        """
+        Содержит время исполнения вызовов сервера 1С:Предприятия от имени данного сеанса с момента начала сеанса,
+        в секундах.
+        """
+        return self._iv8obj.durationAll
+
+    @property
+    def duration_all_dbms(self) -> float:
+        """
+        Содержит суммарное время исполнения запросов к СУБД от имени данного сеанса с момента начала сеанса,
+        в миллисекундах.
+        """
+        return self._iv8obj.durationAllDBMS
+
+    @property
+    def duration_all_service(self) -> float:
+        """
+        Время в миллисекундах, которое затрачено сеансом на вызовы сервисов кластера с момента начала сеанса.
+        """
+        return self._iv8obj.durationAllService
+
+    @property
+    def duration_current(self) -> float:
+        """
+        Содержит интервал времени в миллисекундах, прошедший с момента начала обращения, в случае,
+        если сеанс выполняет обращение к серверу 1С:Предприятия. Иначе – 0.
+        """
+        return self._iv8obj.durationCurrent
+
+    @property
+    def duration_current_dbms(self) -> float:
+        """
+        Содержит интервал времени в миллисекундах, прошедший с момента начала выполнения запроса,
+        в случае, если сеанс выполняет запрос к СУБД. Иначе – 0.
+        """
+        return self._iv8obj.durationCurrentDBMS
+
+    @property
+    def duration_current_service(self) -> float:
+        """
+        Содержит время, в течение которого сеанс выполняет текущий вызов сервиса кластера.
+        0, если в данный момент вызов сервиса кластера не выполняется, в миллисекундах.
+        """
+        return self._iv8obj.durationCurrentService
+
+    @property
+    def duration_last_5min(self) -> float:
+        """
+        Содержит время исполнения вызовов сервера 1С:Предприятия от имени данного сеанса за последние 5 минут,
+        в миллисекундах.
+        """
+        return self._iv8obj.durationLast5Min
+
+    @property
+    def duration_last_5min_dbms(self) -> float:
+        """
+        Содержит суммарное время исполнения запросов к СУБД от имени данного сеанса за последние 5 минут,
+        в миллисекундах.
+        """
+        return self._iv8obj.durationLast5MinDBMS
+
+    @property
+    def duration_last_5min_service(self) -> float:
+        """
+        Содержит время, которое затрачено сеансом на вызовы сервисов кластера за последние 5 минут, в миллисекундах.
+        """
+        return self._iv8obj.durationLast5MinService
+
+    @property
+    def hibernate(self) -> bool:
+        """
+        Сеанс находится в спящем режиме.
+        """
+        return self._iv8obj.Hibernate
+
+    @property
+    def hibernate_session_terminate_time(self) -> int:
+        """
+        Интервал времени в секундах, по истечении которого спящий сеанс завершается.
+        """
+        return self._iv8obj.HibernateSessionTerminateTime
+
+    @property
+    def host(self) -> str:
+        """
+        Содержит имя или адрес компьютера, установившего сеанс.
+        """
+        return self._iv8obj.Host
+
 
 class License(COMObjectWrapper):
     """
@@ -1490,3 +1737,165 @@ class License(COMObjectWrapper):
     """
     def __init__(self, iv8_license):
         super().__init__(iv8_license)
+
+    @property
+    def filename(self) -> str:
+        """
+        Содержит полное имя используемого файла программной лицензии.
+        Только в случае использования программной лицензии платформы. Иначе содержит пустую строку.
+        """
+        return self._iv8obj.FileName
+
+    @property
+    def full_presentation(self) -> str:
+        """
+        Содержит локализованное строковое представление лицензии,
+        как в свойстве "Лицензия" диалога свойств сеанса или свойств рабочего процесса консоли кластера.
+        """
+        return self._iv8obj.FullPresentation
+
+    @property
+    def issued_by_server(self) -> bool:
+        """
+        Истина - лицензия получена сервером 1С:Предприятия и выдана клиентскому приложению.
+        Ложь - лицензия получена клиентским приложением.
+        """
+        return self._iv8obj.IssuedByServer
+
+    @property
+    def license_type(self) -> int:
+        """
+        Содержит тип лицензии:
+        0 - программная лицензия платформы;
+        1 - аппаратная лицензия (ключ защиты программы).
+        """
+        return self._iv8obj.LicenseType
+
+    @property
+    def max_users_all(self) -> int:
+        """
+        Содержит максимальное количество пользователей, допустимое для данного комплекта,
+        если используется программная лицензия платформы. Иначе совпадает с значением свойства MaxUsersCur.
+        """
+        return self._iv8obj.MaxUsersAll
+
+    @property
+    def max_users_cur(self) -> int:
+        """
+        Содержит максимальное количество пользователей в используемом ключе защиты программы
+        или в используемом файле программной лицензии.
+        """
+        return self._iv8obj.MaxUsersCur
+
+    @property
+    def net(self) -> bool:
+        """
+        Истина, если для аппаратной лицензии ключ защиты программы является сетевым,
+        лицензия получена через менеджер лицензий Aladdin License Manager; Ложь в противном случае.
+        """
+        return self._iv8obj.Net
+
+    @property
+    def rmngr_address(self) -> str:
+        """
+        Содержит адрес сервера, на котором запущен процесс, получивший лицензию.
+        Если лицензию получило клиентское приложение, то содержит пустую строку.
+        """
+        return self._iv8obj.RMngrAddress
+
+    @property
+    def rmngr_pid(self) -> str:
+        """
+        Содержит идентификатор процесса, получившего лицензию, присвоенный ему операционной системой.
+        """
+        return self._iv8obj.RMngrPID
+
+    @property
+    def rmngr_port(self) -> int:
+        """
+        Содержит номер IP-порта серверного процесса, получившего лицензию.
+        0 - лицензию получило клиентское приложение.
+        """
+        return self._iv8obj.RMngrPort
+
+    @property
+    def series(self) -> int:
+        """
+        Содержит серию ключа защиты программы для аппаратной лицензии
+        или регистрационный номер комплекта для программной лицензии платформы.
+        """
+        return self._iv8obj.Series
+
+    @property
+    def short_presentation(self) -> str:
+        """
+        Содержит локализованное строковое представление лицензии,
+        как в колонке "Лицензия" списка сеансов или рабочих процессов.
+        """
+        return self._iv8obj.ShortPresentation
+
+
+class ConnectionShort(COMObjectWrapper):
+    """
+    Описание соединения. Получение этой информации не требует аутентификации пользователей информационных баз.
+    Представляет собой объект с интерфейсом IConnectionShort.
+    """
+    def __init__(self, iv8_connection):
+        super().__init__(iv8_connection)
+
+    @property
+    def application(self) -> str:
+        """
+        Содержит имя приложения, установившего соединение с фермой серверов 1С:Предприятия.
+        """
+        return self._iv8obj.Application
+
+    @property
+    def blocked_by_ls(self) -> int:
+        """
+        Содержит идентификатор соединения, блокирующего работу данного соединения (в Сервисе транзакционных блокировок).
+        """
+        return self._iv8obj.blockedByLS
+
+    @property
+    def connected_at(self):
+        """
+        Содержит момент времени, когда соединение было установлено.
+        """
+        return self._iv8obj.ConnectedAt
+
+    @property
+    def conn_id(self) -> int:
+        """
+        Содержит идентификатор соединения. Позволяет различить разные соединения,
+        установленные одним и тем же приложением с одного и того же клиентского компьютера.
+        """
+        return self._iv8obj.ConnID
+
+    @property
+    def host(self) -> str:
+        """
+        Содержит имя пользовательского компьютера, с которого установлено соединение.
+        """
+        return self._iv8obj.Host
+
+    @property
+    def infobase(self) -> 'InfobaseShort':
+        """
+        Содержит интерфейс объекта с кратким описанием информационной базы, к которой относится данное соединение.
+        """
+        return InfobaseShort(self._iv8obj.InfoBase)
+
+    @property
+    def process(self) -> 'WorkingProcess':
+        """
+        Содержит интерфейс объекта с описанием серверного процесса, с которым установлено данное соединение.
+        """
+        return WorkingProcess(self._iv8obj.Process)
+
+    @property
+    def session_id(self) -> int:
+        """
+        Содержит номер сеанса, если соединению назначен сеанс, иначе - 0.
+        """
+        return self._iv8obj.SessionID
