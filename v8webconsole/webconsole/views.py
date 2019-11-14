@@ -39,14 +39,12 @@ class InfobaseListView(LoginRequiredMixin, ListView):
     template_name = 'infobase_list.html'
 
     def get_queryset(self):
-        cluster = Cluster.objects.get(host__id=self.kwargs['cluster_id'])
+        cluster = Cluster.objects.get(id=self.kwargs['cluster_id'])
         host = cluster.host
-        cluster_credentials = ClusterCredentials.objects.filter(cluster__id=cluster.id)[:1][0]
-        cci = core_cluster.ClusterControlInterface(host=host.address, port=host.port,
-                                                   cluster_admin_name=cluster_credentials.login,
-                                                   cluster_admin_pwd=cluster_credentials.pwd,
-                                                   infobases_credentials={}
-                                                   )
-        agent_connection = cci.get_agent_connection()
-        info_bases_short = cci.get_info_bases_short(agent_connection)
-        return [ib.Name for ib in info_bases_short]
+        cluster_credentials = ClusterCredentials.objects.filter(cluster__id=cluster.id)[:1].get()
+
+        ragentci = core_cluster.ServerAgentControlInterface(host=host.address, port=host.port)
+        clusterci = ragentci.get_cluster_interface(cluster.name)
+        clusterci.cluster_auth(cluster_admin_name=cluster_credentials.login, cluster_admin_pwd=cluster_credentials.pwd)
+        info_bases_short = clusterci.get_info_bases_short()
+        return [ib.name for ib in info_bases_short]
