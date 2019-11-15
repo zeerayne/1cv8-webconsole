@@ -9,6 +9,8 @@ django-extensions = "==2.2.5"
 [packages]
 pywin32 = "==225"
 Django = "==2.2.7"
+djangorestframework = "==3.10.3"
+djangorestframework_simplejwt = "==4.3.0"
 
 [requires]
 python_version = "3.8"
