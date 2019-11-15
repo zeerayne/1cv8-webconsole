@@ -290,7 +290,15 @@ class ServerAgentConnection(COMObjectWrapper):
         :param password: Пароль администратора центрального сервера.
         :return:
         """
-        self._iv8obj.AuthenticateAgent
+        self._iv8obj.AuthenticateAgent(login, password)
+
+    def get_agent_admins(self) -> List['RegUser']:
+        """
+        Получает массив администраторов центрального сервера. Для успешного выполнения метода необходима аутентификация
+        одного из администраторов центрального сервера. Если не зарегистрирован ни один администратор центрального
+        сервера, то перед выполнением этого метода следует выполнить метод AuthenticateAgent("", "").
+        """
+        return [RegUser(usr) for usr in self._iv8obj.GetAgentAdmins()]
 
     def get_clusters(self) -> List['Cluster']:
         """
@@ -1899,3 +1907,115 @@ class ConnectionShort(COMObjectWrapper):
         Содержит номер сеанса, если соединению назначен сеанс, иначе - 0.
         """
         return self._iv8obj.SessionID
+
+
+class RegUser(COMObjectWrapper):
+    """
+    Содержит информацию об администраторе центрального сервера или кластера серверов.
+    Используется для получения информации о администраторах методом GetClusterAdmins или для регистрации новых
+    администраторов кластера методами CreateClusterAdminInfo и RegClusterAdmin.
+    Представляет собой объект с интерфейсом IRegUserInfo.
+    """
+    def __init__(self, iv8_reg_user_info):
+        super().__init__(iv8_reg_user_info)
+        self.__password = None
+
+    @property
+    def descr(self) -> str:
+        """
+        Содержит описание администратора центрального сервера или кластера серверов.
+        Предназначено для визуального отображения.
+
+        Использование:
+        Чтение и запись
+        """
+        return self._iv8obj.Descr
+
+    @descr.setter
+    def descr(self, arg: str):
+        self._iv8obj.Descr = arg
+
+    @property
+    def name(self) -> str:
+        """
+        Имя администратора центрального сервера или кластера (кластеров) серверов. Для центрального сервера указываются
+        администраторы, для каждого кластера также указываются свои администраторы. Имена администраторов,
+        зарегистрированных на центральном сервере должны быть уникальными среди имен администраторов центрального
+        сервера. Аналогичное замечание относится к именам администраторов кластера серверов. Имена администраторов
+        центрального сервера могут совпадать с именами администраторов в кластере (кластерах) серверов. Также имена
+        администраторов в одном кластере серверов могут совпадать с именами администраторов в другом кластере серверов.
+
+        Использование:
+        Чтение и запись
+        """
+        return self._iv8obj.Name
+
+    @name.setter
+    def name(self, arg: str):
+        self._iv8obj.Name = arg
+
+    @property
+    def password(self) -> str:
+        """
+        Пароль пользователя для его аутентификации.
+
+        Использование:
+        Только запись
+        """
+        return self.__password
+
+    @password.setter
+    def password(self, arg: str):
+        self.__password = arg
+        self._iv8obj.Password = arg
+
+    @property
+    def password_auth_allowed(self) -> bool:
+        """
+        Содержит признак разрешения администратору аутентификации паролем.
+        Истина - аутентификация паролем. В этом случае при правильном вводе пароля администратор будет считаться
+        аутентифицированным.
+        Ложь - запрещена.
+
+        Использование:
+        Чтение и запись
+        """
+        return self._iv8obj.PasswordAuthAllowed
+
+    @password_auth_allowed.setter
+    def password_auth_allowed(self, arg: bool):
+        self._iv8obj.PasswordAuthAllowed = arg
+
+    @property
+    def sys_auth_allowed(self) -> bool:
+        """
+        Содержит признак разрешения администратору аутентификации пользователем операционной системы.
+        Истина - аутентификация разрешена. Данный администратор будет считаться аутентифицированным, если клиентское
+        приложение работает от имени пользователя операционной системы, имя которого указано в качестве значения
+        свойства SysUserName. При этом необходимо, чтобы компьютеры, на которых работают агент сервера и клиентское
+        приложение, использовали один и тот же сервер аутентификации (например, контроллер домена Windows).
+        Ложь - запрещена.
+
+        Использование:
+        Чтение и запись
+        """
+        return self._iv8obj.SysAuthAllowed
+
+    @sys_auth_allowed.setter
+    def sys_auth_allowed(self, arg: bool):
+        self._iv8obj.SysAuthAllowed = arg
+
+    @property
+    def sys_username(self) -> str:
+        """
+        Содержит имя пользователя операционной системы, которое соответствует данному администратору кластера серверов.
+        Формат: \\\\<имя домена>\\<имя пользователя>. Например, \\\\domain\\username.
+
+        Использование:
+        Чтение и запись.
+        """
+        return self._iv8obj.SysUserName
+
+    @sys_username.setter
+    def sys_username(self, arg: str):
+        self._iv8obj.SysUserName = arg
