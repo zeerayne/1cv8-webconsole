@@ -10,7 +10,7 @@ import logging
 > Ошибка при вызове конструктора (COMObject): -2147221164(0x80040154): Класс не зарегистрирован.
 
 Для того чтобы зарегистрировать ComConnector в 64 разрядной операционной системе Windows выполняется
-команда: regsvr32 "C:\Program Files (x86)\1cv8\[version]\bin\comcntr.dll" 
+команда: regsvr32 "C:\\Program Files (x86)\\1cv8\\[version]\\bin\\comcntr.dll" 
 """
 from typing import Tuple, List
 from .comcntr import COMConnector, ServerAgentConnection, WorkingProcessConnection, Cluster, InfobaseShort, Infobase
@@ -23,6 +23,15 @@ class ServerAgentControlInterface:
         self.host = host
         self.agent_port = str(port)
         self.agent_connection = self.V8COMConnector.connect_agent(f'tcp://{host}:{port}')
+        self.authenticated = False
+
+    def authenticate_agent(self, login, password):
+        self.agent_connection.authenticate_agent(login, password)
+        self.authenticated = True
+
+    def get_agent_admins(self):
+        assert self.authenticated, 'Only authenticated user can use this method'
+        return self.agent_connection.get_agent_admins()
 
     def get_cluster_interface(self, cluster_name: str) -> 'ClusterControlInterface':
         return ClusterControlInterface(self.host,
