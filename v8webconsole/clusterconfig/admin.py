@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Host, Cluster, ClusterCredentials, InfobaseCredentials
+from .models import (
+    Host,
+    HostCredentials,
+    Cluster,
+    ClusterCredentials,
+    InfobaseCredentials
+)
 
 
 @admin.register(Host)
@@ -10,6 +16,17 @@ class HostAdmin(admin.ModelAdmin):
         return obj.client.name
     client_name.short_description = 'Client'
     client_name.admin_order_field = 'client__name'
+
+
+@admin.register(HostCredentials)
+class HostCredentialsAdmin(admin.ModelAdmin):
+    list_display = ('login', 'host', )
+
+    def host(self, obj):
+        host = obj.host
+        return f'{host.address}:{host.port}'
+    host.short_description = 'Host'
+    host.admin_order_field = 'host__name'
 
 
 @admin.register(Cluster)
