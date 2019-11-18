@@ -1,7 +1,9 @@
 import pythoncom
 import win32com.client
 
+from datetime import datetime
 from typing import List, Optional
+
 
 
 class COMObjectWrapper:
@@ -686,13 +688,13 @@ class WorkingProcess(COMObjectWrapper):
         return self._iv8obj.Running
 
     @property
-    def SelectionSize(self) -> int:
+    def selection_size(self) -> int:
         """
         Количество вызовов, по которым посчитана статистика.
         """
         return self._iv8obj.SelectionSize
 
-    def started_at(self):
+    def started_at(self) -> datetime:
         """
         Содержит момент запуска рабочего процесса. Если процесс не запущен, то содержит нулевую дату.
         """
@@ -981,7 +983,7 @@ class Infobase(InfobaseShort):
         self._iv8obj.dbUser = arg
 
     @property
-    def denied_from(self):
+    def denied_from(self) -> datetime:
         """
         Начало интервала времени, в течение которого действует режим блокировки сеансов.
         Если указана пустая дата ('00010101'), то без ограничения.
@@ -992,7 +994,7 @@ class Infobase(InfobaseShort):
         return self._iv8obj.DeniedFrom
 
     @denied_from.setter
-    def denied_from(self, arg):
+    def denied_from(self, arg: datetime):
         self._iv8obj.DeniedFrom = arg
 
     @property
@@ -1024,7 +1026,7 @@ class Infobase(InfobaseShort):
         self._iv8obj.DeniedParameter = arg
 
     @property
-    def denied_to(self):
+    def denied_to(self) -> datetime:
         """
         Конец интервала времени, в течение которого действует режим блокировки сеансов.
         Если указана пустая дата ('00010101'), то без ограничения.
@@ -1035,7 +1037,7 @@ class Infobase(InfobaseShort):
         return self._iv8obj.DeniedTo
 
     @denied_to.setter
-    def denied_to(self, arg):
+    def denied_to(self, arg: datetime):
         self._iv8obj.DeniedTo = arg
 
     @property
@@ -1285,7 +1287,7 @@ class InfobaseConnection(COMObjectWrapper):
         return self._iv8obj.callsLast5Min
 
     @property
-    def connected_at(self):
+    def connected_at(self) -> datetime:
         """
         Содержит время установки соединения.
         """
@@ -1348,7 +1350,7 @@ class InfobaseConnection(COMObjectWrapper):
         return self._iv8obj.dbProcTook
 
     @property
-    def db_proc_took_at(self):
+    def db_proc_took_at(self) -> datetime:
         """
         Момент последнего захвата соединения с сервером баз данных.
         """
@@ -1641,7 +1643,7 @@ class Session(COMObjectWrapper):
         return self._iv8obj.dbProcTook
 
     @property
-    def db_proc_took_at(self):
+    def db_proc_took_at(self) -> datetime:
         """
         Содержит момент времени, когда соединение с СУБД было захвачено данным сеансом последний раз.
         """
@@ -1866,7 +1868,7 @@ class ConnectionShort(COMObjectWrapper):
         return self._iv8obj.blockedByLS
 
     @property
-    def connected_at(self):
+    def connected_at(self) -> datetime:
         """
         Содержит момент времени, когда соединение было установлено.
         """
