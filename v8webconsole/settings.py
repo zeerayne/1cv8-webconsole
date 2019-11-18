@@ -75,12 +75,9 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
-    # Use Django's standard `django.contrib.auth` permissions,
-    # or allow read-only access for unauthenticated users.
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
     ],
-
+    'EXCEPTION_HANDLER': 'v8webconsole.utils.handlers.friendly_exception_handler',
 }
 
 ROOT_URLCONF = 'v8webconsole.urls'
@@ -192,8 +189,6 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
-
-LOGIN_URL = '/account/login/'
 
 
 # Internationalization
