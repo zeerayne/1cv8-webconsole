@@ -13,7 +13,15 @@ import logging
 команда: regsvr32 "C:\\Program Files (x86)\\1cv8\\[version]\\bin\\comcntr.dll" 
 """
 from typing import Tuple, List
-from .comcntr import COMConnector, ServerAgentConnection, WorkingProcessConnection, Cluster, InfobaseShort, Infobase
+from .comcntr import (
+    COMConnector,
+    ServerAgentConnection,
+    WorkingProcessConnection,
+    Cluster,
+    InfobaseShort,
+    Infobase,
+)
+from .exceptions import ClusterAdminAuthRequired
 
 
 class ServerAgentControlInterface:
@@ -66,7 +74,7 @@ class ClusterControlInterface:
         self.__cluster_auth_passed = False
         self.__working_process_connection = None
 
-    def cluster_auth(self, cluster_admin_name: str, cluster_admin_pwd: str):
+    def authenticate_cluster_admin(self, cluster_admin_name: str, cluster_admin_pwd: str):
         """
         Авторизует соединение с агентом сервера для указанного кластера.
         :param cluster_admin_name: Имя администратора кластера
@@ -78,7 +86,7 @@ class ClusterControlInterface:
 
     def __check_cluster_auth(self):
         if not self.__cluster_auth_passed:
-            raise Exception('Cluster admin auth required')
+            raise ClusterAdminAuthRequired('Cluster admin auth required')
 
     @property
     def working_process_connection(self) -> 'WorkingProcessConnection':
@@ -115,10 +123,18 @@ class ClusterControlInterface:
         working_process_connection.add_authentication(login, password)
 
     def get_info_bases(self) -> List['Infobase']:
-        info_bases = self.working_process_connection.get_infobases()
-        return info_bases
+        """
+        Получает список информационных баз в кластере
+        Для чтения значений всех их свойств, кроме Name, необходимы административные права.
+        """
+        return self.working_process_connection.get_infobases()
 
     def get_info_bases_short(self) -> List['InfobaseShort']:
+        """
+        Получает список кратких описаний информационных баз в кластере.
+        Для успешного выполнения метода необходима аутентификация одного из администраторов кластера.
+        """
+        self.__check_cluster_auth()
         return self.agent_connection.get_infobases(self.cluster)
 
     def get_info_base_metadata(self, info_base, info_base_user, info_base_pwd) -> Tuple[str, str]:
