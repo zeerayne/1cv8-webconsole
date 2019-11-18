@@ -4,7 +4,8 @@ from .models import (
     HostCredentials,
     Cluster,
     ClusterCredentials,
-    InfobaseCredentials
+    InfobaseCredentials,
+    InfobaseDefaultCredentials,
 )
 
 
@@ -60,6 +61,25 @@ class ClusterCredentialsAdmin(admin.ModelAdmin):
 @admin.register(InfobaseCredentials)
 class InfobaseCredentialsAdmin(admin.ModelAdmin):
     list_display = ('name', 'login', 'cluster', 'host',)
+
+    def cluster(self, obj):
+        cluster = obj.cluster
+        return f'{cluster.name}'
+
+    cluster.short_description = 'Cluster'
+    cluster.admin_order_field = 'cluster__name'
+
+    def host(self, obj):
+        host = obj.cluster.host
+        return f'{host.address}:{host.port}'
+
+    host.short_description = 'Host'
+    host.admin_order_field = 'cluster__host__name'
+
+
+@admin.register(InfobaseDefaultCredentials)
+class InfobaseDefaultCredentialsAdmin(admin.ModelAdmin):
+    list_display = ('login', 'cluster', 'host',)
 
     def cluster(self, obj):
         cluster = obj.cluster

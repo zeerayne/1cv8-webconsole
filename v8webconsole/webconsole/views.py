@@ -1,20 +1,19 @@
-from django.views.generic import ListView
 from v8webconsole.clusterconfig.models import Host, Cluster, ClusterCredentials
-from django.contrib.auth.mixins import LoginRequiredMixin
-from rest_framework import (generics, status)
+from rest_framework import (generics, status, viewsets)
 from rest_framework.response import Response
 
-from v8webconsole.core.cluster import ServerAgentControlInterface
 from .views_mixins import GetRAgentInterfaceMixin
 from .serializers import (
     HostSerializer,
     ClusterSerializer,
     RegUserSerializer,
-    InfobaseSerializer,
+    ShortInfobaseSerializer,
+    FullInfobaseSerializer,
 )
 
 
-class HostsListView(generics.ListAPIView):
+
+class HostListView(generics.ListAPIView):
     permission_classes = ()
 
     serializer_class = HostSerializer
@@ -23,7 +22,7 @@ class HostsListView(generics.ListAPIView):
         return Host.objects.all()
 
 
-class HostAdminsListView(GetRAgentInterfaceMixin, generics.GenericAPIView):
+class HostAdminListView(GetRAgentInterfaceMixin, generics.GenericAPIView):
     permission_classes = ()
 
     serializer_class = RegUserSerializer
@@ -34,12 +33,11 @@ class HostAdminsListView(GetRAgentInterfaceMixin, generics.GenericAPIView):
 
     def get(self, request, *args, **kwargs):
         qs = self.get_queryset()
-        serializer = self.get_serializer(data=qs, many=True)
-        serializer.is_valid()
+        serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class ClustersListView(GetRAgentInterfaceMixin, generics.GenericAPIView):
+class ClusterListView(GetRAgentInterfaceMixin, generics.GenericAPIView):
     permission_classes = ()
 
     serializer_class = ClusterSerializer
@@ -49,23 +47,44 @@ class ClustersListView(GetRAgentInterfaceMixin, generics.GenericAPIView):
 
     def get(self, request, *args, **kwargs):
         qs = self.get_queryset()
-        serializer = self.get_serializer(data=qs, many=True)
-        serializer.is_valid()
+        serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class InfobaseListView(GetRAgentInterfaceMixin, generics.GenericAPIView):
-    permission_classes = ()
-
-    serializer_class = InfobaseSerializer
+class InfobaseViewSet(GetRAgentInterfaceMixin, viewsets.GenericViewSet):
+    short_serializer_class = ShortInfobaseSerializer
+    full_serializer_class = FullInfobaseSerializer
 
     def get_queryset(self):
-        cluster = Cluster.objects.get(id=self.kwargs['cluster_id'])
-        host = cluster.host
-        cluster_credentials = ClusterCredentials.objects.filter(cluster__id=cluster.id)[:1].get()
+        self.authenticate_cluster_admin()
+        return self.get_cluster_interface().get_info_bases_short()
 
-        ragentci = ServerAgentControlInterface(host=host.address, port=host.port)
-        clusterci = ragentci.get_cluster_interface(cluster.name)
-        clusterci.cluster_auth(cluster_admin_name=cluster_credentials.login, cluster_admin_pwd=cluster_credentials.pwd)
-        info_bases_short = clusterci.get_info_bases_short()
-        return [ib.name for ib in info_bases_short]
+    def get_object(self):
+        self.authenticate_cluster_admin()
+        self.get_cluster_interface().working_process_connection.add_authentication('Администратор', '')
+        return next(filter(
+            lambda ib: ib.name == self.kwargs['pk'],
+            self.get_cluster_interface().working_process_connection.get_infobases()
+        ))
+
+    def list(self, request, **kwargs):
+        qs = self.get_queryset()
+        serializer = self.short_serializer_class(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request):
+        pass
+
+    def retrieve(self, request, **kwargs):
+        obj = self.get_object()
+        serializer = self.full_serializer_class(obj)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def update(self, request, pk=None):
+        pass
+
+    def partial_update(self, request, pk=None):
+        pass
+
+    def destroy(self, request, pk=None):
+        pass

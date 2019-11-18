@@ -11,7 +11,8 @@ class Host(models.Model):
 
 class HostCredentials(models.Model):
     class Meta:
-        verbose_name_plural = "Host credentials"
+        verbose_name = 'Host credentials'
+        verbose_name_plural = 'Host credentials'
 
     login = models.CharField(max_length=100)
     pwd = models.CharField(max_length=100, blank=True)
@@ -31,7 +32,8 @@ class Cluster(models.Model):
 
 class ClusterCredentials(models.Model):
     class Meta:
-        verbose_name_plural = "Cluster credentials"
+        verbose_name = 'Cluster credentials'
+        verbose_name_plural = 'Cluster credentials'
 
     login = models.CharField(max_length=100)
     pwd = models.CharField(max_length=100, blank=True)
@@ -43,7 +45,8 @@ class ClusterCredentials(models.Model):
 
 class InfobaseCredentials(models.Model):
     class Meta:
-        verbose_name_plural = "Infobase credentials"
+        verbose_name = 'Infobase credentials'
+        verbose_name_plural = 'Infobase credentials'
 
     name = models.CharField(max_length=100)
     login = models.CharField(max_length=100, blank=True)
@@ -51,4 +54,17 @@ class InfobaseCredentials(models.Model):
     cluster = models.ForeignKey(to=Cluster, on_delete=models.CASCADE, related_name='infobase_credentials')
 
     def __str__(self):
-        return f'{self.name} in cluster {self.cluster}'
+        return f'{self.name}::{self.login} in cluster {self.cluster}'
+
+
+class InfobaseDefaultCredentials(models.Model):
+    class Meta:
+        verbose_name = 'Infobase default credentials'
+        verbose_name_plural = 'Infobase default credentials'
+
+    login = models.CharField(max_length=100, blank=True)
+    pwd = models.CharField(max_length=100, blank=True)
+    cluster = models.ForeignKey(to=Cluster, on_delete=models.CASCADE, related_name='infobase_default_credentials')
+
+    def __str__(self):
+        return f'DEFAULT::{self.login} in cluster {self.cluster}'
