@@ -4,8 +4,8 @@ from .views import (
     HostListView,
     HostAdminListView,
     ClusterListView,
+    InfobaseViewSet,
 )
-from .views import InfobaseViewSet
 
 router = DefaultRouter()
 router.register(r'infobases', InfobaseViewSet, basename='infobase')

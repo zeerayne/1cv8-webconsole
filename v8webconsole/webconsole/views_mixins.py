@@ -27,10 +27,10 @@ class GetRAgentInterfaceMixin:
         credentials = self.__host.host_credentials.all()
         if len(credentials):
             creds = credentials[0]
-            login, password = creds.login, creds.pwd
+            login, pwd = creds.login, creds.pwd
         else:
-            login, password = '', ''
-        ragent_interface.authenticate_agent(login, password)
+            login, pwd = '', ''
+        ragent_interface.authenticate_agent(login, pwd)
 
     def get_cluster_interface(self) -> ClusterControlInterface:
         if not hasattr(self, '_cluster_interface'):
@@ -39,11 +39,12 @@ class GetRAgentInterfaceMixin:
 
     def authenticate_cluster_admin(self):
         cluster_interface = self.get_cluster_interface()
-        try:
-            cluster = Cluster.objects.get(name=self.kwargs['cluster_name'])
-            cluster_credentials = ClusterCredentials.objects.filter(cluster__id=cluster.id)[:1].get()
-            login, pwd = cluster_credentials.login, cluster_credentials.pwd
-        except Cluster.DoesNotExist:
+        cluster = Cluster.objects.get(name__iexact=self.kwargs['cluster_name'])
+        credentials = cluster.cluster_credentials.all()
+        if len(credentials):
+            creds = credentials[0]
+            login, pwd = creds.login, creds.pwd
+        else:
             login, pwd = '', ''
         cluster_interface.authenticate_cluster_admin(
             cluster_admin_name=login,

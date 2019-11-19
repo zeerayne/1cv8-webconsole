@@ -17,7 +17,23 @@ class ClusterSerializer(serializers.Serializer):
 
 class ShortInfobaseSerializer(serializers.Serializer):
     name = serializers.CharField()
-    descr = serializers.CharField()
+    descr = serializers.CharField(required=False)
+
+
+class CreateInfobaseSerializer(ShortInfobaseSerializer):
+    date_offset = serializers.IntegerField(write_only=True, required=False)
+    dbms = serializers.CharField()
+    db_name = serializers.CharField()
+    db_password = serializers.CharField(write_only=True)
+    db_server_name = serializers.CharField()
+    db_user = serializers.CharField()
+    license_distribution_allowed = serializers.BooleanField()
+    locale = serializers.CharField(write_only=True)
+    scheduled_jobs_denied = serializers.BooleanField()
+    create_db = serializers.BooleanField()
+
+    def save(self, **kwargs):
+        pass
 
 
 class FullInfobaseSerializer(ShortInfobaseSerializer):

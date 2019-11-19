@@ -56,9 +56,10 @@ class ServerAgentControlInterface:
         """
         Получает кластер из списка по его имени
         """
-        for cluster in self.get_clusters():
-            if cluster.cluster_name.lower() == cluster_name.lower():
-                return cluster
+        return next(filter(
+            lambda cluster: cluster.cluster_name.lower() == cluster_name.lower(),
+            self.get_clusters()
+        ))
 
 
 class ClusterControlInterface:
@@ -93,11 +94,10 @@ class ClusterControlInterface:
         if self.__working_process_connection:
             return self.__working_process_connection
         self.__check_cluster_auth()
-        working_process = None
-        for wp in self.agent_connection.get_working_processes(self.cluster):
-            if wp.running == 1:
-                working_process = wp
-                break
+        working_process = next(filter(
+            lambda wp: wp.running == 1,
+            self.agent_connection.get_working_processes(self.cluster)
+        ))
         # TODO: корректнее будет использовать working_process.hostname, но есть ньюансы
         working_process_host = self.host
         working_process_port = str(working_process.main_port)
