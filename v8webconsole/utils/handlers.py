@@ -22,6 +22,8 @@ def friendly_exception_handler(exc, context):
                 error = {'code': key, 'detail': value}
                 customized_response_data['errors'].append(error)
         if settings.DEBUG:
-            customized_response_data['stacktrace'] = traceback.format_exc()
+            if not issubclass(type(exc), APIException):
+                customized_response_data['stacktrace'] = traceback.format_exc()
+                traceback.print_exc()
         response.data = customized_response_data
     return response
