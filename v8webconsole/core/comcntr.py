@@ -749,17 +749,18 @@ class WorkingProcessConnection(COMObjectWrapper):
         """
         return self._iv8obj.Connect(infobase.get_underlying_com_object(), login, password)
 
-    def create_infobase(self, infobase: 'Infobase', mode: int) -> 'Infobase':
+    def create_infobase(self, infobase: 'Infobase', create_db: bool = False):
         """
         Создает информационную базу с заданными параметрами. Требуется аутентификация администратора кластера.
         :param infobase: Информационная база. Все свойства, необходимые для создания информационной базы
         (Name, dbServerName, dbName, dbUser, dbPassword, Locale, [DateOffset]) должны быть заполнены.
-        :param mode: Режим создания информационной базы:
-        0 - при создании информационной базы базу данных не создавать;
-        1 - при создании информационной базы создавать базу данных.
-        :return: Информационная база
+        :param create_db: Флаг, определяющий, будет ли создана база данных в случае её отсутствия
         """
-        return Infobase(self._iv8obj.CreateInfoBase(infobase.get_underlying_com_object(), mode))
+        # mode: Режим создания информационной базы:
+        #         0 - при создании информационной базы базу данных не создавать;
+        #         1 - при создании информационной базы создавать базу данных.
+        mode = int(create_db)
+        self._iv8obj.CreateInfoBase(infobase.get_underlying_com_object(), mode)
 
     def create_infobase_info(self) -> 'Infobase':
         """
@@ -1084,11 +1085,11 @@ class Infobase(InfobaseShort):
         self._iv8obj.ExternalSessionManagerRequired = arg
 
     @property
-    def license_distribution_allowed(self) -> int:
+    def license_distribution_allowed(self) -> bool:
         """
         Разрешить выдачу лицензий сервером 1С:Предприятия.
-        0 - не разрешать,
-        1 - разрешить.
+        False - не разрешать,
+        True - разрешить.
         Если при запуске клиентского приложения с клиент-серверной информационной базой клиентское приложение
         не получило аппаратную лицензию (от локального HASP или сетевого HASP) или программную лицензию
         (платформы или базовой конфигурации), то оно предпринимает попытку получить лицензию с сервера 1С:Предприятия.
@@ -1097,11 +1098,11 @@ class Infobase(InfobaseShort):
         Использование:
         Чтение и запись.
         """
-        return self._iv8obj.LicenseDistributionAllowed
+        return bool(self._iv8obj.LicenseDistributionAllowed)
 
     @license_distribution_allowed.setter
-    def license_distribution_allowed(self, arg: int):
-        self._iv8obj.LicenseDistributionAllowed = arg
+    def license_distribution_allowed(self, arg: bool):
+        self._iv8obj.LicenseDistributionAllowed = int(arg)
 
     @property
     def locale(self) -> str:

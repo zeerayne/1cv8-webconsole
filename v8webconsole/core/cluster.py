@@ -90,6 +90,10 @@ class ClusterControlInterface:
             raise ClusterAdminAuthRequired('Cluster admin auth required')
 
     @property
+    def cluster_admin_authenticated(self):
+        return self.__cluster_auth_passed
+
+    @property
     def working_process_connection(self) -> 'WorkingProcessConnection':
         if self.__working_process_connection:
             return self.__working_process_connection
@@ -129,6 +133,13 @@ class ClusterControlInterface:
         """
         return self.working_process_connection.get_infobases()
 
+    def get_info_base(self, name) -> 'Infobase':
+        """
+        Получает информационную базу по имени
+        Для чтения значений всех их свойств, кроме Name, необходимы административные права.
+        """
+        return next(filter(lambda ib: name.lower() == ib.name.lower(), self.get_info_bases()))
+
     def get_info_bases_short(self) -> List['InfobaseShort']:
         """
         Получает список кратких описаний информационных баз в кластере.
@@ -161,10 +172,10 @@ class ClusterControlInterface:
         :param message: Сообщение будет выводиться при попытке установить сеанс с ИБ
         """
         # TODO: необходима проверка, есть ли у рабочего процесса необходимые авторизационные данные для этой ИБ
-        info_base.ScheduledJobsDenied = True
-        info_base.SessionsDenied = True
-        info_base.PermissionCode = permission_code
-        info_base.DeniedMessage = message
+        info_base.scheduled_jobs_denied = True
+        info_base.sessions_denied = True
+        info_base.permission_code = permission_code
+        info_base.denied_message = message
         self.working_process_connection.update_infobase(info_base)
         logging.debug(f'[{info_base.name}] Lock info base successfully')
 
