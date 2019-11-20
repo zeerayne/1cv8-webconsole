@@ -19,7 +19,8 @@ from .serializers import (
     RegUserSerializer,
     ShortInfobaseSerializer,
     CreateInfobaseSerializer,
-    FullInfobaseSerializer,
+    UpdateInfobaseSerializer,
+    DetailInfobaseSerializer,
 )
 
 
@@ -66,13 +67,20 @@ class InfobaseViewSet(GetRAgentInterfaceMixin, viewsets.GenericViewSet):
 
     permission_classes = (permissions.IsAuthenticated, )
 
+    actions_map = {
+        'list': ShortInfobaseSerializer,
+        'create': CreateInfobaseSerializer,
+        'update': UpdateInfobaseSerializer,
+        'partial_update': UpdateInfobaseSerializer,
+        'retrieve': DetailInfobaseSerializer,
+    }
+
     def get_serializer(self, *args, **kwargs):
-        if self.action == 'list':
-            return ShortInfobaseSerializer
-        elif self.action == 'create':
-            return CreateInfobaseSerializer
-        else:
-            return FullInfobaseSerializer
+        kwargs['context'] = self.get_serializer_context()
+        return self.actions_map.setdefault(self.action, DetailInfobaseSerializer)(*args, **kwargs)
+
+    def get_detail_serializer(self, *args, **kwargs):
+        return DetailInfobaseSerializer(*args, **kwargs)
 
     def get_queryset(self):
         self.authenticate_cluster_admin()
@@ -88,10 +96,7 @@ class InfobaseViewSet(GetRAgentInterfaceMixin, viewsets.GenericViewSet):
         except InfobaseCredentials.DoesNotExist:
             for ibc in InfobaseDefaultCredentials.objects.filter(cluster=cluster):
                 self.get_cluster_interface().working_process_connection.add_authentication(ibc.login, ibc.pwd)
-        return next(filter(
-            lambda ib: ib.name == ib_name,
-            self.get_cluster_interface().working_process_connection.get_infobases()
-        ))
+        return self.get_cluster_interface().get_info_base(ib_name)
 
     def list(self, request, pk=None, **kwargs):
         qs = self.get_queryset()
@@ -101,11 +106,12 @@ class InfobaseViewSet(GetRAgentInterfaceMixin, viewsets.GenericViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        instance = self.perform_create(serializer)
+        detail_serializer = self.get_detail_serializer(instance)
+        return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
-        serializer.save()
+        return serializer.save(cluster_interface=self.get_cluster_interface())
 
     def retrieve(self, request, pk=None, **kwargs):
         obj = self.get_object()
@@ -113,10 +119,20 @@ class InfobaseViewSet(GetRAgentInterfaceMixin, viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def update(self, request, pk=None, **kwargs):
-        pass
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        instance = self.perform_update(serializer)
+        detail_serializer = self.get_detail_serializer(instance)
+        return Response(detail_serializer.data)
+
+    def perform_update(self, serializer):
+        return serializer.save(cluster_interface=self.get_cluster_interface())
 
     def partial_update(self, request, pk=None, **kwargs):
-        pass
+        kwargs['partial'] = True
+        return self.update(request, pk, **kwargs)
 
     def destroy(self, request, pk=None, **kwargs):
         pass
