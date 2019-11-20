@@ -1,7 +1,10 @@
 import traceback
 from django.conf import settings
 from rest_framework.views import exception_handler
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import (
+    APIException,
+    ValidationError,
+)
 
 
 def friendly_exception_handler(exc, context):
@@ -22,7 +25,7 @@ def friendly_exception_handler(exc, context):
                 error = {'code': key, 'detail': value}
                 customized_response_data['errors'].append(error)
         if settings.DEBUG:
-            if not issubclass(type(exc), APIException):
+            if not issubclass(type(exc), ValidationError):
                 customized_response_data['stacktrace'] = traceback.format_exc()
                 traceback.print_exc()
         response.data = customized_response_data
