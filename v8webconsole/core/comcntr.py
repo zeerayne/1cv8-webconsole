@@ -780,7 +780,7 @@ class WorkingProcessConnection(COMObjectWrapper):
         """
         self._iv8obj.Disconnect(connection.get_underlying_com_object())
 
-    def drop_infobase(self, infobase: 'Infobase', mode: int):
+    def drop_infobase(self, infobase: 'Infobase', mode: int = 0):
         """
         Удаляет информационную базу. Для выполнения требуются административные права в удаляемой информационной базе.
         :param infobase: Информационная база, для которой должно быть установлено значение свойства Name.

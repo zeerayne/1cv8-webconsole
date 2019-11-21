@@ -20,6 +20,7 @@ from .comcntr import (
     Cluster,
     InfobaseShort,
     Infobase,
+    RegUser,
 )
 from .exceptions import ClusterAdminAuthRequired
 
@@ -31,15 +32,26 @@ class ServerAgentControlInterface:
         self.host = host
         self.agent_port = str(port)
         self.agent_connection = self.V8COMConnector.connect_agent(f'tcp://{host}:{port}')
-        self.authenticated = False
+        self.__authenticated = False
 
     def authenticate_agent(self, login, password):
         self.agent_connection.authenticate_agent(login, password)
-        self.authenticated = True
+        self.__authenticated = True
 
-    def get_agent_admins(self):
-        assert self.authenticated, 'Only authenticated user can use this method'
+    def get_agent_admins(self) -> List['RegUser']:
+        """
+        Получает список администраторов центрального сервера.
+        Для получения списка требуется аутентификация одного из администраторов
+        """
+        assert self.__authenticated, 'Only authenticated user can use this method. ' \
+                                     'Authenticate using "authenticate_agent" method'
         return self.agent_connection.get_agent_admins()
+
+    def get_agent_admin(self, name) -> 'RegUser':
+        return next(filter(
+            lambda admin: admin.name.lower() == name.lower(),
+            self.get_agent_admins()
+        ))
 
     def get_cluster_interface(self, cluster_name: str) -> 'ClusterControlInterface':
         return ClusterControlInterface(self.host,
@@ -50,11 +62,14 @@ class ServerAgentControlInterface:
                 for cluster in self.get_clusters()]
 
     def get_clusters(self) -> List['Cluster']:
+        """
+        Получает список кластеров
+        """
         return self.agent_connection.get_clusters()
 
     def get_cluster(self, cluster_name: str) -> 'Cluster':
         """
-        Получает кластер из списка по его имени
+        Получает кластер по его имени
         """
         return next(filter(
             lambda cluster: cluster.cluster_name.lower() == cluster_name.lower(),
