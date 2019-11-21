@@ -1,6 +1,9 @@
 from rest_framework import serializers
 
 
+SECURITY_LEVEL_CHOICES = [(0, 'no_encryption'), (1, 'encrypted_auth'), (2, 'encrypted_always'), ]
+
+
 class HostSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     address = serializers.CharField()
@@ -11,8 +14,46 @@ class RegUserSerializer(serializers.Serializer):
     name = serializers.CharField()
 
 
-class ClusterSerializer(serializers.Serializer):
+class ShortClusterSerializer(serializers.Serializer):
     cluster_name = serializers.CharField()
+
+
+class DetailClusterSerializer(ShortClusterSerializer):
+    errors_count_threshold = serializers.IntegerField(
+        required=False,
+    )
+    expiration_timeout = serializers.IntegerField(
+        required=False,
+    )
+    hostname = serializers.CharField(
+        required=False,
+    )
+    kill_problem_processes = serializers.BooleanField(
+        required=False,
+    )
+    life_time_limit = serializers.IntegerField(
+        required=False,
+    )
+    load_balancing_mode = serializers.ChoiceField(
+        choices=[(0, 'performance'), (1, 'memory'), ],
+        required=False,
+    )
+    main_port = serializers.IntegerField(
+        required=False,
+    )
+    max_memory_size = serializers.IntegerField(
+        required=False,
+    )
+    max_memory_time_limit = serializers.IntegerField(
+        required=False,
+    )
+    security_level = serializers.ChoiceField(
+        choices=SECURITY_LEVEL_CHOICES,
+        required=False,
+    )
+    session_fault_tolerance_level = serializers.IntegerField(
+        required=False,
+    )
 
 
 class ShortInfobaseSerializer(serializers.Serializer):
@@ -72,7 +113,8 @@ class UpdateInfobaseSerializer(serializers.Serializer):
     scheduled_jobs_denied = serializers.BooleanField(
         required=False,
     )
-    security_level = serializers.IntegerField(
+    security_level = serializers.ChoiceField(
+        choices=SECURITY_LEVEL_CHOICES,
         required=False,
     )
     security_profile_name = serializers.CharField(
@@ -115,8 +157,6 @@ class CreateInfobaseSerializer(ShortInfobaseSerializer):
 
     def save(self, **kwargs):
         cluster_interface = kwargs['cluster_interface']
-        if not cluster_interface.cluster_admin_authenticated:
-            cluster_interface.authenticate_cluster_admin()
         create_db = self.validated_data.pop('create_db', False)
         infobase = cluster_interface.working_process_connection.create_infobase_info()
         for key, value in self.validated_data.items():
@@ -150,6 +190,8 @@ class DetailInfobaseSerializer(ShortInfobaseSerializer):
     permission_code = serializers.CharField()
     safe_mode_security_profile_name = serializers.CharField()
     scheduled_jobs_denied = serializers.BooleanField()
-    security_level = serializers.IntegerField()
+    security_level = serializers.ChoiceField(
+        choices=SECURITY_LEVEL_CHOICES,
+    )
     security_profile_name = serializers.CharField()
     sessions_denied = serializers.BooleanField()

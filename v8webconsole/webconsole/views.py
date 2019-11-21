@@ -2,17 +2,20 @@ from v8webconsole.clusterconfig.models import (
     Host,
 )
 from rest_framework import (
-    generics,
     status,
     permissions,
     viewsets,
 )
 from rest_framework.response import Response
 from rest_framework import exceptions
-from .views_mixins import RAgentInterfaceViewMixin
+from .views_mixins import (
+    RAgentInterfaceViewMixin,
+    MultiSerializerViewSetMixin,
+)
 from .serializers import (
     HostSerializer,
-    ClusterSerializer,
+    ShortClusterSerializer,
+    DetailClusterSerializer,
     RegUserSerializer,
     ShortInfobaseSerializer,
     CreateInfobaseSerializer,
@@ -48,30 +51,48 @@ class HostAdminViewSet(RAgentInterfaceViewMixin, viewsets.GenericViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class ClusterViewSet(RAgentInterfaceViewMixin, viewsets.GenericViewSet):
+class ClusterViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, viewsets.GenericViewSet):
     permission_classes = (permissions.IsAuthenticated, )
 
-    serializer_class = ClusterSerializer
+    default_serializer_class = DetailClusterSerializer
+
+    actions_map = {
+        'list': ShortClusterSerializer,
+        'retrieve': DetailClusterSerializer,
+    }
 
     def get_queryset(self):
         return self.get_ragent_interface().get_clusters()
+
+    def get_object(self):
+        cluster_name = self.kwargs['pk']
+        try:
+            self.get_ragent_interface().get_cluster(cluster_name)
+        except StopIteration:
+            raise exceptions.NotFound(f'Cluster with name [{cluster_name}] does not exists')
 
     def list(self, request, host_pk=None, **kwargs):
         qs = self.get_queryset()
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def retrieve(self, request, host_pk=None, pk=None, **kwargs):
+        obj = self.get_object()
+        serializer = self.get_serializer(obj)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-class InfobaseViewSet(RAgentInterfaceViewMixin, viewsets.GenericViewSet):
 
+class InfobaseViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, viewsets.GenericViewSet):
     permission_classes = (permissions.IsAuthenticated, )
+
+    default_serializer_class = DetailInfobaseSerializer
 
     actions_map = {
         'list': ShortInfobaseSerializer,
         'create': CreateInfobaseSerializer,
         'update': UpdateInfobaseSerializer,
         'partial_update': UpdateInfobaseSerializer,
-        'retrieve': DetailInfobaseSerializer,
+        'retrieve': default_serializer_class,
     }
 
     destroy_mode_map = {
@@ -79,13 +100,6 @@ class InfobaseViewSet(RAgentInterfaceViewMixin, viewsets.GenericViewSet):
         'drop': 1,
         'clear': 2,
     }
-
-    def get_serializer(self, *args, **kwargs):
-        kwargs['context'] = self.get_serializer_context()
-        return self.actions_map.setdefault(self.action, DetailInfobaseSerializer)(*args, **kwargs)
-
-    def get_detail_serializer(self, *args, **kwargs):
-        return DetailInfobaseSerializer(*args, **kwargs)
 
     def get_queryset(self):
         self.authenticate_cluster_admin()
@@ -109,10 +123,11 @@ class InfobaseViewSet(RAgentInterfaceViewMixin, viewsets.GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = self.perform_create(serializer)
-        detail_serializer = self.get_detail_serializer(instance)
+        detail_serializer = self.get_default_serializer(instance)
         return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
+        self.authenticate_cluster_admin()
         return serializer.save(cluster_interface=self.get_cluster_interface())
 
     def retrieve(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
@@ -126,7 +141,7 @@ class InfobaseViewSet(RAgentInterfaceViewMixin, viewsets.GenericViewSet):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         instance = self.perform_update(serializer)
-        detail_serializer = self.get_detail_serializer(instance)
+        detail_serializer = self.get_default_serializer(instance)
         return Response(detail_serializer.data)
 
     def perform_update(self, serializer):

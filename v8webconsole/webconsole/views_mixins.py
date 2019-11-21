@@ -9,6 +9,26 @@ from v8webconsole.clusterconfig.models import (
 )
 
 
+class MultiSerializerViewSetMixin:
+    """
+    Примесь, которая позволяет переопределяя словарь actions_map управлять, какой сериализатор
+    будет возвращен методом get_serializer
+    """
+    actions_map = {}
+
+    default_serializer_class = None
+
+    def get_serializer(self, *args, **kwargs):
+        kwargs['context'] = self.get_serializer_context()
+        return self.actions_map.setdefault(self.action, self.default_serializer_class)(*args, **kwargs)
+
+    def get_default_serializer_class(self):
+        return self.default_serializer_class
+
+    def get_default_serializer(self, *args, **kwargs):
+        return self.get_default_serializer_class()(*args, **kwargs)
+
+
 class RAgentInterfaceViewMixin:
 
     _ragent_interface: Optional[ServerAgentControlInterface]
@@ -41,17 +61,18 @@ class RAgentInterfaceViewMixin:
 
     def authenticate_cluster_admin(self):
         cluster_interface = self.get_cluster_interface()
-        cluster = self.get_cluster_model()
-        credentials = cluster.cluster_credentials.all()
-        if len(credentials):
-            creds = credentials[0]
-            login, pwd = creds.login, creds.pwd
-        else:
-            login, pwd = '', ''
-        cluster_interface.authenticate_cluster_admin(
-            cluster_admin_name=login,
-            cluster_admin_pwd=pwd
-        )
+        if not cluster_interface.cluster_admin_authenticated:
+            cluster = self.get_cluster_model()
+            credentials = cluster.cluster_credentials.all()
+            if len(credentials):
+                creds = credentials[0]
+                login, pwd = creds.login, creds.pwd
+            else:
+                login, pwd = '', ''
+            cluster_interface.authenticate_cluster_admin(
+                cluster_admin_name=login,
+                cluster_admin_pwd=pwd
+            )
 
     def authenticate_infobase_default_admin(self):
         cluster = self.get_cluster_model()
