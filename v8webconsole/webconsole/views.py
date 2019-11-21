@@ -1,8 +1,5 @@
 from v8webconsole.clusterconfig.models import (
     Host,
-    Cluster,
-    InfobaseCredentials,
-    InfobaseDefaultCredentials,
 )
 from rest_framework import (
     generics,
@@ -11,8 +8,8 @@ from rest_framework import (
     viewsets,
 )
 from rest_framework.response import Response
-
-from .views_mixins import GetRAgentInterfaceMixin
+from rest_framework import exceptions
+from .views_mixins import RAgentInterfaceViewMixin
 from .serializers import (
     HostSerializer,
     ClusterSerializer,
@@ -24,18 +21,20 @@ from .serializers import (
 )
 
 
-
-class HostListView(generics.ListAPIView):
-    permission_classes = ()
+class HostViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = (permissions.IsAuthenticated, )
 
     serializer_class = HostSerializer
 
     def get_queryset(self):
         return Host.objects.all()
 
+    def get_object(self):
+        return Host.objects.get(id=self.kwargs['pk'])
 
-class HostAdminListView(GetRAgentInterfaceMixin, generics.GenericAPIView):
-    permission_classes = ()
+
+class HostAdminViewSet(RAgentInterfaceViewMixin, viewsets.GenericViewSet):
+    permission_classes = (permissions.IsAuthenticated, )
 
     serializer_class = RegUserSerializer
 
@@ -43,27 +42,27 @@ class HostAdminListView(GetRAgentInterfaceMixin, generics.GenericAPIView):
         self.authenticate_agent()
         return self.get_ragent_interface().get_agent_admins()
 
-    def get(self, request, *args, **kwargs):
+    def list(self, request, host_pk=None, *args, **kwargs):
         qs = self.get_queryset()
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class ClusterListView(GetRAgentInterfaceMixin, generics.GenericAPIView):
-    permission_classes = ()
+class ClusterViewSet(RAgentInterfaceViewMixin, viewsets.GenericViewSet):
+    permission_classes = (permissions.IsAuthenticated, )
 
     serializer_class = ClusterSerializer
 
     def get_queryset(self):
         return self.get_ragent_interface().get_clusters()
 
-    def get(self, request, *args, **kwargs):
+    def list(self, request, host_pk=None, **kwargs):
         qs = self.get_queryset()
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class InfobaseViewSet(GetRAgentInterfaceMixin, viewsets.GenericViewSet):
+class InfobaseViewSet(RAgentInterfaceViewMixin, viewsets.GenericViewSet):
 
     permission_classes = (permissions.IsAuthenticated, )
 
@@ -73,6 +72,12 @@ class InfobaseViewSet(GetRAgentInterfaceMixin, viewsets.GenericViewSet):
         'update': UpdateInfobaseSerializer,
         'partial_update': UpdateInfobaseSerializer,
         'retrieve': DetailInfobaseSerializer,
+    }
+
+    destroy_mode_map = {
+        'persist': 0,
+        'drop': 1,
+        'clear': 2,
     }
 
     def get_serializer(self, *args, **kwargs):
@@ -87,23 +92,20 @@ class InfobaseViewSet(GetRAgentInterfaceMixin, viewsets.GenericViewSet):
         return self.get_cluster_interface().get_info_bases_short()
 
     def get_object(self):
-        self.authenticate_cluster_admin()
         ib_name = self.kwargs['pk']
-        cluster = Cluster.objects.get(name__iexact=self.kwargs['cluster_name'])
+        self.authenticate_cluster_admin()
+        self.authenticate_infobase_admin(ib_name)
         try:
-            ibc = InfobaseCredentials.objects.get(cluster=cluster, name__iexact=ib_name)
-            self.get_cluster_interface().working_process_connection.add_authentication(ibc.login, ibc.pwd)
-        except InfobaseCredentials.DoesNotExist:
-            for ibc in InfobaseDefaultCredentials.objects.filter(cluster=cluster):
-                self.get_cluster_interface().working_process_connection.add_authentication(ibc.login, ibc.pwd)
-        return self.get_cluster_interface().get_info_base(ib_name)
+            return self.get_cluster_interface().get_info_base(ib_name)
+        except StopIteration:
+            raise exceptions.NotFound(f'Infobase with name [{ib_name}] does not exists')
 
-    def list(self, request, pk=None, **kwargs):
+    def list(self, request, host_pk=None, cluster_pk=None, **kwargs):
         qs = self.get_queryset()
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request, host_pk=None, cluster_pk=None, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         instance = self.perform_create(serializer)
@@ -113,12 +115,12 @@ class InfobaseViewSet(GetRAgentInterfaceMixin, viewsets.GenericViewSet):
     def perform_create(self, serializer):
         return serializer.save(cluster_interface=self.get_cluster_interface())
 
-    def retrieve(self, request, pk=None, **kwargs):
+    def retrieve(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
         obj = self.get_object()
         serializer = self.get_serializer(obj)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def update(self, request, pk=None, **kwargs):
+    def update(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -130,9 +132,15 @@ class InfobaseViewSet(GetRAgentInterfaceMixin, viewsets.GenericViewSet):
     def perform_update(self, serializer):
         return serializer.save(cluster_interface=self.get_cluster_interface())
 
-    def partial_update(self, request, pk=None, **kwargs):
+    def partial_update(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
         kwargs['partial'] = True
-        return self.update(request, pk, **kwargs)
+        return self.update(request, host_pk, cluster_pk, pk, **kwargs)
 
-    def destroy(self, request, pk=None, **kwargs):
-        pass
+    def destroy(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
+        instance = self.get_object()
+        mode = self.destroy_mode_map[request.query_params.get('mode', 'persist')]
+        self.perform_destroy(instance, mode)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def perform_destroy(self, instance, mode):
+        self.get_cluster_interface().working_process_connection.drop_infobase(instance, mode)

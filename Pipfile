@@ -11,6 +11,7 @@ pywin32 = "==225"
 Django = "==2.2.7"
 djangorestframework = "==3.10.3"
 djangorestframework_simplejwt = "==4.3.0"
+drf-nested-routers = "==0.91"
 
 [requires]
 python_version = "3.8"

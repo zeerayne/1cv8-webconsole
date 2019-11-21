@@ -85,12 +85,8 @@ class UpdateInfobaseSerializer(serializers.Serializer):
     def save(self, **kwargs):
         cluster_interface = kwargs['cluster_interface']
         infobase = self.instance
-        #for key, value in self.validated_data.items():
-        #    setattr(infobase, key, value)
-        cluster_interface.working_process_connection.add_authentication('', '')
-        infobase = cluster_interface.get_info_base(infobase.name)
-        infobase = cluster_interface.get_info_base('com-test')
-        infobase.descr = "tetstets"
+        for key, value in self.validated_data.items():
+            setattr(infobase, key, value)
         cluster_interface.working_process_connection.update_infobase(infobase)
         infobase = cluster_interface.get_info_base(infobase.name)
         return infobase
