@@ -76,6 +76,20 @@ class ServerAgentControlInterface:
             self.get_clusters()
         ))
 
+    def reg_cluster(self, cluster: 'Cluster'):
+        self.agent_connection.reg_cluster(cluster)
+
+    def unreg_cluster(self, cluster: 'Cluster', login, pwd):
+        """
+        Выполняет отмену регистрации кластера. Для успешного выполнения метода необходима аутентификация одного из
+        администраторов кластера. Возможна отмена регистрации только пустого кластера.
+        :param cluster: кластер
+        :param login: логин администратора кластера
+        :param pwd: пароль администратора кластера
+        """
+        self.agent_connection.authenticate(cluster, login, pwd)
+        self.agent_connection.unreg_cluster(cluster)
+
 
 class ClusterControlInterface:
 

@@ -353,6 +353,16 @@ class ServerAgentConnection(COMObjectWrapper):
         """
         return [WorkingProcess(w) for w in self._iv8obj.GetWorkingProcesses(cluster.get_underlying_com_object())]
 
+    def reg_cluster(self, cluster: 'Cluster'):
+        """
+        Позволяет зарегистрировать существующий кластер или создать новый кластер и зарегистрировать его.
+        :param cluster: Описание кластера. Этот объект должен быть предварительно создан методом CreateClusterInfo
+        и должны быть установлены правильные значения его свойств. Объект, являющийся элементом
+        массива зарегистрированных кластеров, также может быть использован для создания нового кластера после изменения
+        значений соответствующих свойств.
+        """
+        self._iv8obj.RegCluster(cluster.get_underlying_com_object())
+
     def terminate_session(self, cluster: 'Cluster', session: 'Session', message: str = ''):
         """
         Удаляет сеанс. Попытка обращения к кластеру серверов от имени удаленного сеанса вызывает исключение.
@@ -362,6 +372,16 @@ class ServerAgentConnection(COMObjectWrapper):
         Значение по умолчанию: "Выполнение текущей операции прервано администратором".
         """
         self._iv8obj.TerminateSession(cluster.get_underlying_com_object(), session.get_underlying_com_object(), message)
+
+    def unreg_cluster(self, cluster: 'Cluster'):
+        """
+        Выполняет отмену регистрации кластера. Для успешного выполнения метода необходима аутентификация одного из
+        пользователей кластера. Возможна отмена регистрации только пустого кластера.
+        :param cluster: Кластер серверов, регистрацию которого необходимо отменить. Этот объект должен быть получен
+        из элемента массива зарегистрированных кластеров, полученного методом GetClusters,
+        или создан методом CreateClusterInfo с последующим заполнением свойств.
+        """
+        self._iv8obj.UnregCluster(cluster.get_underlying_com_object())
 
 
 class Cluster(COMObjectWrapper):
