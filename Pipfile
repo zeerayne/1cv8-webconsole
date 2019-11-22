@@ -5,6 +5,7 @@ verify_ssl = true
 
 [dev-packages]
 django-extensions = "==2.2.5"
+pylint = "*"
 
 [packages]
 pywin32 = "==227"
