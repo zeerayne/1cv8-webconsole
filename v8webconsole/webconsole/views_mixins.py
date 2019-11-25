@@ -59,16 +59,20 @@ class RAgentInterfaceViewMixin:
             self._cluster_interface = self.get_ragent_interface().get_cluster_interface(self.kwargs['cluster_pk'])
         return self._cluster_interface
 
+    def get_cluster_admin_credentials(self):
+        cluster = self.get_cluster_model()
+        credentials = cluster.cluster_credentials.all()
+        if len(credentials):
+            creds = credentials[0]
+            login, pwd = creds.login, creds.pwd
+        else:
+            login, pwd = '', ''
+        return login, pwd
+
     def authenticate_cluster_admin(self):
         cluster_interface = self.get_cluster_interface()
         if not cluster_interface.cluster_admin_authenticated:
-            cluster = self.get_cluster_model()
-            credentials = cluster.cluster_credentials.all()
-            if len(credentials):
-                creds = credentials[0]
-                login, pwd = creds.login, creds.pwd
-            else:
-                login, pwd = '', ''
+            login, pwd = self.get_cluster_admin_credentials()
             cluster_interface.authenticate_cluster_admin(
                 cluster_admin_name=login,
                 cluster_admin_pwd=pwd

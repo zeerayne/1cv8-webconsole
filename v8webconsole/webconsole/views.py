@@ -67,7 +67,7 @@ class ClusterViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, view
     def get_object(self):
         cluster_name = self.kwargs['pk']
         try:
-            self.get_ragent_interface().get_cluster(cluster_name)
+            return self.get_ragent_interface().get_cluster(cluster_name)
         except StopIteration:
             raise exceptions.NotFound(f'Cluster with name [{cluster_name}] does not exists')
 
@@ -76,10 +76,48 @@ class ClusterViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, view
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def create(self, request, host_pk=None, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = self.perform_create(serializer)
+        detail_serializer = self.get_default_serializer(instance)
+        return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
+
+    def perform_create(self, serializer):
+        return serializer.save(ragent_interface=self.get_ragent_interface())
+
     def retrieve(self, request, host_pk=None, pk=None, **kwargs):
         obj = self.get_object()
         serializer = self.get_serializer(obj)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def update(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        instance = self.perform_update(serializer)
+        detail_serializer = self.get_default_serializer(instance)
+        return Response(detail_serializer.data)
+
+    def perform_update(self, serializer):
+        return serializer.save(
+            ragent_interface=self.get_ragent_interface(),
+            cluster_interface=self.get_cluster_interface()
+        )
+
+    def partial_update(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, host_pk, cluster_pk, pk, **kwargs)
+
+    def destroy(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def perform_destroy(self, instance):
+        login, pwd = self.get_cluster_admin_credentials()
+        self.get_ragent_interface().unreg_cluster(instance, login, pwd)
 
 
 class InfobaseViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, viewsets.GenericViewSet):
@@ -103,14 +141,14 @@ class InfobaseViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, vie
 
     def get_queryset(self):
         self.authenticate_cluster_admin()
-        return self.get_cluster_interface().get_info_bases_short()
+        return self.get_cluster_interface().get_infobases_short()
 
     def get_object(self):
         ib_name = self.kwargs['pk']
         self.authenticate_cluster_admin()
         self.authenticate_infobase_admin(ib_name)
         try:
-            return self.get_cluster_interface().get_info_base(ib_name)
+            return self.get_cluster_interface().get_infobase(ib_name)
         except StopIteration:
             raise exceptions.NotFound(f'Infobase with name [{ib_name}] does not exists')
 

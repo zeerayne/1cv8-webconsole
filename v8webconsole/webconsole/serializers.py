@@ -31,7 +31,7 @@ class DetailClusterSerializer(ShortClusterSerializer):
     kill_problem_processes = serializers.BooleanField(
         required=False,
     )
-    life_time_limit = serializers.IntegerField(
+    lifetime_limit = serializers.IntegerField(
         required=False,
     )
     load_balancing_mode = serializers.ChoiceField(
@@ -54,6 +54,58 @@ class DetailClusterSerializer(ShortClusterSerializer):
     session_fault_tolerance_level = serializers.IntegerField(
         required=False,
     )
+
+    def create(self, validated_data):
+        ragent_interface = validated_data.pop('ragent_interface')
+        cluster = ragent_interface.agent_connection.create_cluster_info()
+        for key, value in validated_data.items():
+            setattr(cluster, key, value)
+        ragent_interface.reg_cluster(cluster)
+        return ragent_interface.get_cluster(cluster.name)
+
+    def update(self, instance, validated_data):
+        ragent_interface = validated_data.pop('ragent_interface')
+        cluster_interface = validated_data.pop('cluster_interface')
+        cluster = self.instance
+        if 'max_memory_size' in validated_data and 'max_memory_time_limit' in validated_data:
+            max_memory_size = validated_data['max_memory_size']
+            max_memory_time_limit = validated_data['max_memory_time_limit']
+            if max_memory_size != cluster.max_memory_size or max_memory_time_limit != cluster.max_memory_time_limit:
+                cluster_interface.set_recycling_by_memory(
+                    max_memory_size,
+                    max_memory_time_limit
+                )
+        if 'lifetime_limit' in validated_data:
+            lifetime_limit = validated_data['lifetime_limit']
+            if lifetime_limit != cluster.lifetime_limit:
+                cluster_interface.set_recycling_by_time(
+                    lifetime_limit
+                )
+        if 'errors_count_threshold' in validated_data:
+            errors_count_threshold = validated_data['errors_count_threshold']
+            if errors_count_threshold != cluster.errors_count_threshold:
+                cluster_interface.set_recycling_errors_count_threshold(
+                    errors_count_threshold
+                )
+        if 'expiration_timeout' in validated_data:
+            expiration_timeout = validated_data['expiration_timeout']
+            if expiration_timeout != cluster.expiration_timeout:
+                cluster_interface.set_recycling_expiration_timeout(
+                    expiration_timeout
+                )
+        if 'kill_problem_processes' in validated_data:
+            kill_problem_processes = validated_data['kill_problem_processes']
+            if kill_problem_processes != cluster.kill_problem_processes:
+                cluster_interface.set_recycling_kill_problem_processes(
+                    kill_problem_processes
+                )
+        if 'security_level' in validated_data:
+            security_level = validated_data['security_level']
+            if security_level != cluster.security_level:
+                cluster_interface.set_security_level(
+                    security_level
+                )
+        return ragent_interface.get_cluster(cluster.name)
 
 
 class ShortInfobaseSerializer(serializers.Serializer):
@@ -130,7 +182,7 @@ class UpdateInfobaseSerializer(serializers.Serializer):
         for key, value in self.validated_data.items():
             setattr(infobase, key, value)
         cluster_interface.working_process_connection.update_infobase(infobase)
-        infobase = cluster_interface.get_info_base(infobase.name)
+        infobase = cluster_interface.get_infobase(infobase.name)
         return infobase
 
 
@@ -162,7 +214,7 @@ class CreateInfobaseSerializer(ShortInfobaseSerializer):
         for key, value in self.validated_data.items():
             setattr(infobase, key, value)
         cluster_interface.working_process_connection.create_infobase(infobase, create_db)
-        infobase = cluster_interface.get_info_base(self.validated_data['name'])
+        infobase = cluster_interface.get_infobase(self.validated_data['name'])
         return infobase
 
 
