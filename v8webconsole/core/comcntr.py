@@ -31,9 +31,9 @@ class COMConnector(COMObjectWrapper):
         pythoncom.CoInitialize()
         # В зависимости от версии платформы используется V82.COMConnector или V83.COMConnector
         try:
-            v8_com_connector = win32com.client.Dispatch("V83.COMConnector")
+            v8_com_connector = win32com.client.gencache.EnsureDispatch("V83.COMConnector")
         except pythoncom.com_error:
-            v8_com_connector = win32com.client.Dispatch("V82.COMConnector")
+            v8_com_connector = win32com.client.gencache.EnsureDispatch("V82.COMConnector")
         super().__init__(v8_com_connector)
 
     @property
@@ -294,6 +294,15 @@ class ServerAgentConnection(COMObjectWrapper):
         """
         self._iv8obj.AuthenticateAgent(login, password)
 
+    def create_cluster_info(self) -> 'Cluster':
+        """
+        Создает новый кластер. Все его свойства содержат пустые строки, кроме свойства MainPort,
+        которое устанавливается в значение по умолчанию (1541).
+        Новый кластер может быть использован, например, для регистрации кластера.
+        Для этого ему должны быть явно заданы необходимые значения свойств.
+        """
+        return Cluster(self._iv8obj.CreateClusterInfo())
+
     def get_agent_admins(self) -> List['RegUser']:
         """
         Получает массив администраторов центрального сервера. Для успешного выполнения метода необходима аутентификация
@@ -362,6 +371,93 @@ class ServerAgentConnection(COMObjectWrapper):
         значений соответствующих свойств.
         """
         self._iv8obj.RegCluster(cluster.get_underlying_com_object())
+
+    def set_cluster_recycling_by_memory(self, cluster: 'Cluster', max_memory_size: int, max_memory_time_limit: int):
+        """
+        Устанавливает автоматический перезапуск рабочих процессов по объему памяти.
+        Если объем занятого рабочим процессом виртуального адресного пространства превышает критический объем памяти
+        постоянно на протяжении максимально допустимого времени, то рабочий процесс будет автоматически перезапущен.
+        :param cluster: Кластер, для которого требуется изменить настройку автоматического перезапуска
+        рабочих процессов. Должен быть получен методом GetClusters.
+        :param max_memory_size: Критический объем виртуальной памяти рабочего процесса в килобайтах.
+        0 - критический объем памяти не задан и автоматический перезапуск рабочих процессов не производится.
+        :param max_memory_time_limit: Максимально допустимое время превышения рабочим процессом критического
+        объема виртуальной памяти, в секундах.
+        0 - время не ограничено и автоматический перезапуск рабочих процессов не производится.
+        """
+        self._iv8obj.SetClusterRecyclingByMemory(
+            cluster.get_underlying_com_object(), max_memory_size, max_memory_time_limit
+        )
+
+    def set_cluster_recycling_by_time(self, cluster: 'Cluster', lifetime_limit: int):
+        """
+        Устанавливает периодический перезапуск рабочих процессов. Если после запуска рабочего процесса прошло время,
+        превышающее значение, указанное в параметре <ПериодПерезапуска>,
+        то рабочий процесс будет автоматически перезапущен.
+        :param cluster: Кластер, для которого требуется изменить настройку автоматического перезапуска
+        рабочих процессов. Должен быть получен методом GetClusters.
+        :param lifetime_limit: Период перезапуска рабочих процессов в секундах.
+        0 - периодический перезапуск не выполняется.
+        """
+        self._iv8obj.SetClusterRecyclingByTime(cluster.get_underlying_com_object(), lifetime_limit)
+
+    def set_cluster_recycling_errors_count_threshold(self, cluster: 'Cluster', errors_count_threshold: int):
+        """
+        Устанавливает допустимое отклонение количества ошибок сервера на один запрос
+        в минуту от среднего значения по всем процессам.
+        :param cluster:
+        :param errors_count_threshold: Устанавливаемое допустимое отклонение количества ошибок сервера за один
+        запрос в минуту. Задается в процентном отношении от среднего значения по остальным процессам.
+        Например, если значение параметра установлено "50", а среднее количество ошибок
+        на запрос в минуту за последние 5 минут - "100", то порог считается преодоленным для процессов,
+        которые вызвали более 150 ошибок на запрос в минуту.
+        """
+        self._iv8obj.SetClusterRecyclingErrorsCountThreshold(
+            cluster.get_underlying_com_object(), errors_count_threshold
+        )
+
+    def set_cluster_recycling_expiration_timeout(self, cluster: 'Cluster', expiration_timeout: int):
+        """
+        Устанавливает время принудительного завершения. Если запущенный рабочий процесс выключен, то он будет завершен
+        после того, как через него не будет установлено ни одного соединения с информационными базами.
+        Однако после того, как со времени выключения процесса пройдет <ТаймаутЗавершения> секунд, рабочий процесс
+        будет завершен принудительно, даже если соединения остались.
+        :param cluster:
+        :param expiration_timeout: Время принудительного завершения рабочих процессов.
+        0 - принудительное завершение рабочих процессов не выполняется.
+        """
+        self._iv8obj.SetClusterRecyclingExpirationTimeout(
+            cluster.get_underlying_com_object(), expiration_timeout
+        )
+
+    def set_cluster_recycling_kill_problem_processes(self, cluster: 'Cluster', kill_problem_processes: bool):
+        """
+        Устанавливает принудительное завершение для проблемных процессов.
+        :param cluster:
+        :param kill_problem_processes: Если установлено значение Истина, то процессы,
+        признанные проблемными по результатам мониторинга, будут принудительно завершены.
+        Возможные причины признания процесса проблемным:
+        - превышение значения <ДопустимоеОтклонениеКоличестваОшибокСервера>,
+        - превышение количества памяти, занимаемой процессом,
+        - зависание процесса (перестает отвечать на запросы),
+        - процесс не был завершен через некоторое время после исключения из кластера.
+        """
+        self._iv8obj.SetClusterRecyclingKillProblemProcesses(
+            cluster.get_underlying_com_object(), kill_problem_processes
+        )
+
+    def set_cluster_security_level(self, cluster: 'Cluster', security_level: int):
+        """
+        Изменить уровень безопасности кластера. Он определяет защищенность соединений процесса менеджера кластера.
+        :param cluster:
+        :param security_level: Уровень безопасности всех соединений процесса менеджера кластера (rmngr).
+        0 - незащищенное соединение,
+        1 - безопасное соединение только на время выполнения аутентификации пользователя,
+        2 - безопасное соединение в течении всего сеанса.
+        """
+        self._iv8obj.SetClusterSecurityLevel(
+            cluster.get_underlying_com_object(), security_level
+        )
 
     def terminate_session(self, cluster: 'Cluster', session: 'Session', message: str = ''):
         """

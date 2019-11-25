@@ -155,21 +155,21 @@ class ClusterControlInterface:
         # в которых зарегистрирован пользователь с таким именем и он имеет право "Администратор".
         working_process_connection.add_authentication(login, password)
 
-    def get_info_bases(self) -> List['Infobase']:
+    def get_infobases(self) -> List['Infobase']:
         """
         Получает список информационных баз в кластере
         Для чтения значений всех их свойств, кроме Name, необходимы административные права.
         """
         return self.working_process_connection.get_infobases()
 
-    def get_info_base(self, name) -> 'Infobase':
+    def get_infobase(self, name) -> 'Infobase':
         """
         Получает информационную базу по имени
         Для чтения значений всех их свойств, кроме Name, необходимы административные права.
         """
-        return next(filter(lambda ib: name.lower() == ib.name.lower(), self.get_info_bases()))
+        return next(filter(lambda ib: name.lower() == ib.name.lower(), self.get_infobases()))
 
-    def get_info_bases_short(self) -> List['InfobaseShort']:
+    def get_infobases_short(self) -> List['InfobaseShort']:
         """
         Получает список кратких описаний информационных баз в кластере.
         Для успешного выполнения метода необходима аутентификация одного из администраторов кластера.
@@ -177,52 +177,70 @@ class ClusterControlInterface:
         self.__check_cluster_auth()
         return self.agent_connection.get_infobases(self.cluster)
 
-    def get_info_base_metadata(self, info_base, info_base_user, info_base_pwd) -> Tuple[str, str]:
+    def get_infobase_metadata(self, infobase, infobase_user, infobase_pwd) -> Tuple[str, str]:
         """
         Получает наименование и версию конфигурации
-        :param info_base: Имя информационной базы
-        :param info_base_user: Пользователь ИБ с правами администратора
-        :param info_base_pwd: Пароль пользователя ИБ
+        :param infobase: Имя информационной базы
+        :param infobase_user: Пользователь ИБ с правами администратора
+        :param infobase_pwd: Пароль пользователя ИБ
         :return: tuple(Наименование, Версия информационной базы)
         """
         external_connection = self.V8COMConnector.connect(
-            f'Srvr="{self.host}";Ref="{info_base}";Usr="{info_base_user}";Pwd="{info_base_pwd}";'
+            f'Srvr="{self.host}";Ref="{infobase}";Usr="{infobase_user}";Pwd="{infobase_pwd}";'
         )
         version = external_connection.Metadata.Version
         name = external_connection.Metadata.Name
         del external_connection
         return name, version
 
-    def lock_info_base(self, info_base: 'Infobase', permission_code='0000', message='Выполняется обслуживание ИБ'):
+    def lock_infobase(self, infobase: 'Infobase', permission_code='0000', message='Выполняется обслуживание ИБ'):
         """
         Блокирует фоновые задания и новые сеансы информационной базы
-        :param info_base:
+        :param infobase:
         :param permission_code: Код доступа к информационной базе во время блокировки сеансов
         :param message: Сообщение будет выводиться при попытке установить сеанс с ИБ
         """
         # TODO: необходима проверка, есть ли у рабочего процесса необходимые авторизационные данные для этой ИБ
-        info_base.scheduled_jobs_denied = True
-        info_base.sessions_denied = True
-        info_base.permission_code = permission_code
-        info_base.denied_message = message
-        self.working_process_connection.update_infobase(info_base)
-        logging.debug(f'[{info_base.name}] Lock info base successfully')
+        infobase.scheduled_jobs_denied = True
+        infobase.sessions_denied = True
+        infobase.permission_code = permission_code
+        infobase.denied_message = message
+        self.working_process_connection.update_infobase(infobase)
+        logging.debug(f'[{infobase.name}] Lock info base successfully')
 
-    def unlock_info_base(self, info_base: 'Infobase'):
+    def set_recycling_by_memory(self, max_memory_size: int, duration: int):
+        self.agent_connection.set_cluster_recycling_by_memory(self.cluster, max_memory_size, duration)
+
+    def set_recycling_by_time(self, lifetime_limit: int):
+        self.agent_connection.set_cluster_recycling_by_time(self.cluster, lifetime_limit)
+
+    def set_recycling_errors_count_threshold(self, errors_count_threshold: int):
+        self.agent_connection.set_cluster_recycling_errors_count_threshold(self.cluster, errors_count_threshold)
+
+    def set_recycling_expiration_timeout(self, expiration_timeout: int):
+        self.agent_connection.set_cluster_recycling_expiration_timeout(self.cluster, expiration_timeout)
+
+    def set_recycling_kill_problem_processes(self, kill_problem_processes: bool):
+        self.agent_connection.set_cluster_recycling_kill_problem_processes(self.cluster, kill_problem_processes)
+
+    def set_security_level(self, security_level: int):
+        self.agent_connection.set_cluster_security_level(self.cluster, security_level)
+
+    def unlock_infobase(self, infobase: 'Infobase'):
         """
         Снимает блокировку фоновых заданий и сеансов информационной базы
         """
-        info_base.ScheduledJobsDenied = False
-        info_base.SessionsDenied = False
-        info_base.DeniedMessage = ""
-        self.working_process_connection.update_infobase(info_base)
-        logging.debug(f'[{info_base.name}] Unlock info base successfully')
+        infobase.ScheduledJobsDenied = False
+        infobase.SessionsDenied = False
+        infobase.DeniedMessage = ""
+        self.working_process_connection.update_infobase(infobase)
+        logging.debug(f'[{infobase.name}] Unlock info base successfully')
 
-    def terminate_info_base_sessions(self, info_base_short: 'InfobaseShort'):
+    def terminate_info_base_sessions(self, infobase_short: 'InfobaseShort'):
         """
         Принудительно завершает текущие сеансы информационной базы
-        :param info_base_short: краткое описание информационной базы
+        :param infobase_short: краткое описание информационной базы
         """
-        info_base_sessions = self.agent_connection.get_infobase_sessions(self.cluster, info_base_short)
+        info_base_sessions = self.agent_connection.get_infobase_sessions(self.cluster, infobase_short)
         for session in info_base_sessions:
             self.agent_connection.terminate_session(self.cluster, session)
