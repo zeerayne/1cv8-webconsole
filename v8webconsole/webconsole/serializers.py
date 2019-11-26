@@ -12,6 +12,11 @@ class HostSerializer(serializers.Serializer):
 
 class RegUserSerializer(serializers.Serializer):
     name = serializers.CharField()
+    descr = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+    password_auth_allowed = serializers.BooleanField()
+    sys_auth_allowed = serializers.BooleanField()
+    sys_username = serializers.CharField()
 
 
 class ShortClusterSerializer(serializers.Serializer):

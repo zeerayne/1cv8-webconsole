@@ -1,15 +1,21 @@
-from v8webconsole.clusterconfig.models import (
-    Host,
-)
 from rest_framework import (
     status,
     permissions,
     viewsets,
+    exceptions,
 )
 from rest_framework.response import Response
-from rest_framework import exceptions
+from rest_framework.mixins import (
+    ListModelMixin,
+    CreateModelMixin,
+    RetrieveModelMixin,
+)
+from v8webconsole.clusterconfig.models import (
+    Host,
+)
 from .views_mixins import (
     RAgentInterfaceViewMixin,
+    ClusterInterfaceViewMixin,
     MultiSerializerViewSetMixin,
 )
 from .serializers import (
@@ -36,24 +42,27 @@ class HostViewSet(viewsets.ReadOnlyModelViewSet):
         return Host.objects.get(id=self.kwargs['pk'])
 
 
-class HostAdminViewSet(RAgentInterfaceViewMixin, viewsets.GenericViewSet):
-    permission_classes = (permissions.IsAuthenticated, )
-
+class HostAdminViewSet(RAgentInterfaceViewMixin,
+                       ListModelMixin,
+                       CreateModelMixin,
+                       RetrieveModelMixin,
+                       viewsets.GenericViewSet):
     serializer_class = RegUserSerializer
 
     def get_queryset(self):
         self.authenticate_agent()
         return self.get_ragent_interface().get_agent_admins()
 
-    def list(self, request, host_pk=None, *args, **kwargs):
-        qs = self.get_queryset()
-        serializer = self.get_serializer(qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get_object(self):
+        self.authenticate_agent()
+        admin_name = self.kwargs['pk']
+        try:
+            return self.get_ragent_interface().get_agent_admin(admin_name)
+        except StopIteration:
+            raise exceptions.NotFound(f'RegUser with name [{admin_name}] does not exists')
 
 
-class ClusterViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, viewsets.GenericViewSet):
-    permission_classes = (permissions.IsAuthenticated, )
-
+class ClusterViewSet(ClusterInterfaceViewMixin, MultiSerializerViewSetMixin, viewsets.GenericViewSet):
     default_serializer_class = DetailClusterSerializer
 
     actions_map = {
@@ -71,44 +80,14 @@ class ClusterViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, view
         except StopIteration:
             raise exceptions.NotFound(f'Cluster with name [{cluster_name}] does not exists')
 
-    def list(self, request, host_pk=None, **kwargs):
-        qs = self.get_queryset()
-        serializer = self.get_serializer(qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def create(self, request, host_pk=None, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        instance = self.perform_create(serializer)
-        detail_serializer = self.get_default_serializer(instance)
-        return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
-
     def perform_create(self, serializer):
         return serializer.save(ragent_interface=self.get_ragent_interface())
-
-    def retrieve(self, request, host_pk=None, pk=None, **kwargs):
-        obj = self.get_object()
-        serializer = self.get_serializer(obj)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def update(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        instance = self.perform_update(serializer)
-        detail_serializer = self.get_default_serializer(instance)
-        return Response(detail_serializer.data)
 
     def perform_update(self, serializer):
         return serializer.save(
             ragent_interface=self.get_ragent_interface(),
             cluster_interface=self.get_cluster_interface()
         )
-
-    def partial_update(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
-        kwargs['partial'] = True
-        return self.update(request, host_pk, cluster_pk, pk, **kwargs)
 
     def destroy(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
         instance = self.get_object()
@@ -120,9 +99,7 @@ class ClusterViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, view
         self.get_ragent_interface().unreg_cluster(instance, login, pwd)
 
 
-class InfobaseViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, viewsets.GenericViewSet):
-    permission_classes = (permissions.IsAuthenticated, )
-
+class InfobaseViewSet(ClusterInterfaceViewMixin, MultiSerializerViewSetMixin, viewsets.GenericViewSet):
     default_serializer_class = DetailInfobaseSerializer
 
     actions_map = {
@@ -152,42 +129,12 @@ class InfobaseViewSet(RAgentInterfaceViewMixin, MultiSerializerViewSetMixin, vie
         except StopIteration:
             raise exceptions.NotFound(f'Infobase with name [{ib_name}] does not exists')
 
-    def list(self, request, host_pk=None, cluster_pk=None, **kwargs):
-        qs = self.get_queryset()
-        serializer = self.get_serializer(qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def create(self, request, host_pk=None, cluster_pk=None, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        instance = self.perform_create(serializer)
-        detail_serializer = self.get_default_serializer(instance)
-        return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
-
     def perform_create(self, serializer):
         self.authenticate_cluster_admin()
         return serializer.save(cluster_interface=self.get_cluster_interface())
 
-    def retrieve(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
-        obj = self.get_object()
-        serializer = self.get_serializer(obj)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def update(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        instance = self.perform_update(serializer)
-        detail_serializer = self.get_default_serializer(instance)
-        return Response(detail_serializer.data)
-
     def perform_update(self, serializer):
         return serializer.save(cluster_interface=self.get_cluster_interface())
-
-    def partial_update(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
-        kwargs['partial'] = True
-        return self.update(request, host_pk, cluster_pk, pk, **kwargs)
 
     def destroy(self, request, host_pk=None, cluster_pk=None, pk=None, **kwargs):
         instance = self.get_object()

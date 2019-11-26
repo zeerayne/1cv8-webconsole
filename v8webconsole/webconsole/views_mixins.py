@@ -1,4 +1,7 @@
 from typing import Optional
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.settings import api_settings
 from v8webconsole.clusterconfig.models import Host
 from v8webconsole.core.cluster import (
     ServerAgentControlInterface,
@@ -28,11 +31,56 @@ class MultiSerializerViewSetMixin:
     def get_default_serializer(self, *args, **kwargs):
         return self.get_default_serializer_class()(*args, **kwargs)
 
+    def get_success_headers(self, data):
+        try:
+            return {'Location': str(data[api_settings.URL_FIELD_NAME])}
+        except (TypeError, KeyError):
+            return {}
+
+    def list(self, request, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def retrieve(self, request, **kwargs):
+        obj = self.get_object()
+        serializer = self.get_serializer(obj)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = self.perform_create(serializer)
+        detail_serializer = self.get_default_serializer(instance)
+        headers = self.get_success_headers(serializer.data)
+        return Response(detail_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_create(self, serializer):
+        raise NotImplementedError('`perform_create()` must be implemented.')
+
+    def partial_update(self, request, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, **kwargs)
+
+    def update(self, request, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        instance = self.perform_update(serializer)
+        detail_serializer = self.get_default_serializer(instance)
+        return Response(detail_serializer.data, status=status.HTTP_200_OK)
+
+    def perform_update(self, serializer):
+        raise NotImplementedError('`perform_update()` must be implemented.')
+
 
 class RAgentInterfaceViewMixin:
-
     _ragent_interface: Optional[ServerAgentControlInterface]
-    _cluster_interface: Optional[ClusterControlInterface]
 
     def get_ragent_interface(self) -> ServerAgentControlInterface:
         if not hasattr(self, '_ragent_interface'):
@@ -50,6 +98,10 @@ class RAgentInterfaceViewMixin:
         else:
             login, pwd = '', ''
         ragent_interface.authenticate_agent(login, pwd)
+
+
+class ClusterInterfaceViewMixin(RAgentInterfaceViewMixin):
+    _cluster_interface: Optional[ClusterControlInterface]
 
     def get_cluster_model(self) -> Cluster:
         return Cluster.objects.get(name__iexact=self.kwargs['cluster_pk'])
